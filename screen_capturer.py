@@ -39,6 +39,7 @@ class GameFb:
     def get_img_feature(self, thin_factor = 1, is_PCA = False):
         im = ImageGrab.grab(bbox=self.run_bbox).convert('1')
         arr = np.array(im)
+        arr_shape = arr.shape
         arr = 1 * arr.flatten()
         im.save('test.png')
         arr = arr[::thin_factor]
@@ -46,7 +47,7 @@ class GameFb:
             pca_path = 'fb_PCA'
             pca = pickle.load(open(pca_path, "rb"))
             arr = pca.transform(arr)[0]
-        return arr
+        return arr, arr_shape
 
         # path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
         # self._grab_save_img(path, self.run_bbox)

@@ -7,13 +7,14 @@ import os
 from fb_rl import FB_RL
 
 #website = 'http://flappybird.io/'
+is_CNN = False
 
 # --------------------------------------
 # (1.) RL config
 # --------------------------------------
 ACTION_GAP_TIME = 0.25
-iteration = 5
-THIN_FACTOR = 20
+iteration = 1000
+THIN_FACTOR = 1
 alpha = 0.5
 SPACE_KEPT_NUMBER = 200
 IDLE_KEPT_NUMBER = 200
@@ -23,11 +24,10 @@ IDLE_KEPT_NUMBER = 200
 # (2.) ANN config
 # --------------------------------------
 nn_config_dict = {}
-nn_config_dict['learning_rate_init'] = 0.1
-nn_config_dict['hidden_layer_sizes'] = (20,1)
+nn_config_dict['learning_rate_init'] = 0.0001
+nn_config_dict['hidden_layer_sizes'] = (100,1)
 nn_config_dict['is_verbose'] = True
 # --------------------------------------
-
 
 # --------------------------------------
 # INITIALISATION
@@ -67,7 +67,7 @@ for iteration_i in range(iteration):
         reward = 1
 
         # (0.) get evn
-        evn_feature_list = game_fb.get_img_feature(thin_factor=THIN_FACTOR)
+        evn_feature_list, img_shape = game_fb.get_img_feature(thin_factor=THIN_FACTOR)
 
 
         # +++++++++++++++++++++++++++++++++++++++++++++++++
@@ -92,7 +92,7 @@ for iteration_i in range(iteration):
                 action = 'space'
             else:
                 #action = 'idle'
-                action = rl_controller.get_action(evn_feature_list)
+                action = rl_controller.get_action(evn_feature_list, img_shape, is_CNN = is_CNN)
         # -------------------------------------------------
 
         # +++++++++++++++++++++++++++++++++++++++++++++++++
@@ -127,7 +127,10 @@ for iteration_i in range(iteration):
     rl_controller.compute_reward()
     rl_controller.save_Q_learning_data(space_kept_number = SPACE_KEPT_NUMBER, idle_kept_number = IDLE_KEPT_NUMBER)
     print ("Training start... ")
-    rl_controller.train_rl()
+    #
+    img_shape = (img_shape[0], int(img_shape[1]/THIN_FACTOR)) # the compression of the data throws away column information
+    #
+    rl_controller.train_rl(img_shape, is_CNN = is_CNN)
     #
     print ("============================================")
     time.sleep(0.5)

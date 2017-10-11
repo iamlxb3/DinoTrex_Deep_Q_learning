@@ -2,7 +2,12 @@ import collections
 import sys
 import os
 import numpy as np
+import torch
 from mlp_regressor import MlpRegressor_P
+from torch.utils.data import TensorDataset
+import io
+#sys.stdout = io.TextIOWrapper(sys.stdout.buffer,encoding='utf8')
+
 
 class FB_RL:
     def __init__(self, nn_config_dict, alpha):
@@ -99,21 +104,28 @@ class FB_RL:
                 print ("error")
                 sys.exit()
 
-        print ("space_feature_list_all: ", space_feature_list_all)
-        print ("space_value_list: ", space_value_list)
+        #print ("space_feature_list_all: ", space_feature_list_all)
+        #print ("space_value_list: ", space_value_list)
         #sys.exit()
 
 
         return space_feature_list_all, space_value_list, idle_feature_list_all, idle_value_list
 
-    def get_action(self, feature_list):
+    def get_action(self, feature_list, img_shape, is_CNN = False):
 
-        feature_array = np.array(feature_list)
-        feature_array = self.data_convert_before_training(feature_array, single_sample = True)
-        space_reward_value = self.space_regressor.regressor_dev(feature_array)
-        idle_reward_value = self.idle_regressor.regressor_dev(feature_array)
+        if is_CNN:
+            #feature_array = np.array(feature_list).reshape(*img_shape)
+            feature_array = np.array([[x.reshape(*img_shape)] for x in feature_list])
+            feature_tensor = torch.from_numpy(feature_array)
+            space_reward_value = 0.0
+            idle_reward_value = 0.0
+        else:
+            feature_array = np.array(feature_list)
+            feature_array = self.data_convert_before_training(feature_array, single_sample = True)
+            space_reward_value = self.space_regressor.regressor_dev(feature_array)
+            idle_reward_value = self.idle_regressor.regressor_dev(feature_array)
 
-        print ("space: {}, idle: {}".format(space_reward_value, idle_reward_value))
+            print ("space: {}, idle: {}".format(space_reward_value, idle_reward_value))
 
         if space_reward_value >= idle_reward_value:
             action = 'space'
@@ -134,7 +146,7 @@ class FB_RL:
         return output_list
 
 
-    def train_rl(self):
+    def train_rl(self, img_shape, is_CNN = False):
 
         # # get the data to train
         # space_feature_list_all, space_value_list, idle_feature_list_all, idle_value_list =\
@@ -168,20 +180,47 @@ class FB_RL:
         #idle_value_list = self.data_convert_before_training(idle_value_list, single_feature = True)
         #
 
+        # --------------------------------------------------------------------------------------------------------------
+        # CNN, convert to tensor
+        # --------------------------------------------------------------------------------------------------------------
+        if is_CNN:
 
-        print ("space_feature_list_all_len: ", len(space_feature_list_all))
-        print ("space_feature_list_size: ", len(space_feature_list_all[0]))
-        print ("space_value_list_size: ", len(space_value_list))
-        print ("space_regressor training...")
-        self.space_regressor.regressor_train(space_feature_list_all, space_value_list)
+            # space
+            space_feature_array = np.array([[x.reshape(*img_shape)] for x in space_feature_list_all])
+            space_value_array = np.array(space_value_list)
+            space_feature_tensor = torch.from_numpy(space_feature_array)
+            space_value_tensor = torch.from_numpy(space_value_array)
+            space_action_dataset = TensorDataset(space_feature_tensor, space_value_tensor)
+            #
 
+            # idle
+            idle_feature_array = np.array([[x.reshape(*img_shape)] for x in idle_feature_list_all])
+            idle_value_array = np.array(idle_value_list)
+            idle_feature_tensor = torch.from_numpy(idle_feature_array)
+            idle_value_tensor = torch.from_numpy(idle_value_array)
+            idle_action_dataset = TensorDataset(idle_feature_tensor, idle_value_tensor)
+            #
 
-        if idle_feature_list_all:
-            print ("idle_feature_list_all_len: ", len(idle_feature_list_all))
-            print ("idle_feature_list_all_size: ", len(idle_feature_list_all[0]))
-            print ("idle_value_list_size: ", len(idle_value_list))
-            print ("idle_regressor training...")
-            self.idle_regressor.regressor_train(idle_feature_list_all, idle_value_list)
+            #print ("space_feature_tensor: {}".format(space_feature_tensor))
+            #print ("space_value_tensor: {}".format(space_value_tensor))
+            #print ("action_space_dataset: {}".format(action_space_dataset))
+
+            sys.exit()
+
+        # --------------------------------------------------------------------------------------------------------------
+        else:
+            print("space_feature_list_all_len: ", len(space_feature_list_all))
+            print("space_feature_list_size: ", len(space_feature_list_all[0]))
+            print("space_value_list_size: ", len(space_value_list))
+            print("space_regressor training...")
+            self.space_regressor.regressor_train(space_feature_list_all, space_value_list)
+
+            if idle_feature_list_all:
+                print ("idle_feature_list_all_len: ", len(idle_feature_list_all))
+                print ("idle_feature_list_all_size: ", len(idle_feature_list_all[0]))
+                print ("idle_value_list_size: ", len(idle_value_list))
+                print ("idle_regressor training...")
+                self.idle_regressor.regressor_train(idle_feature_list_all, idle_value_list)
 
 
     def save_Q_learning_data(self, space_kept_number = 500, idle_kept_number = 500):
@@ -255,7 +294,11 @@ class FB_RL:
             if space_start_read_index < 0:
                 space_start_read_index = 0
 
+            print ("-------------------------------------")
             print ("space_start_read_index: ", space_start_read_index)
+            #print ("sample_feature_list: ", sample_feature_list)
+            print ("sample_value_list: ", sample_value_list)
+
 
             with open (file_name, 'w') as file1:
                 for i, feature in enumerate(sample_feature_list):
