@@ -39,8 +39,43 @@ class FB_RL:
         for step, reward in self.reward_dict.items():
             #print ("step: ", step)
 
-            if step <= max_step - 5:
+            if step <= max_step - 8:
+                next_step3_reward = self.reward_dict[step + 3]
+                next_step4_reward = self.reward_dict[step + 4]
+                next_step5_reward = self.reward_dict[step + 5]
+                next_step6_reward = self.reward_dict[step + 6]
+                next_step7_reward = self.reward_dict[step + 7]
+                next_step8_reward = self.reward_dict[step + 8]
+                reward = 0.04 * next_step3_reward +\
+                         0.04 * next_step4_reward + \
+                         0.04 * next_step5_reward + \
+                         0.04 * next_step6_reward + \
+                         0.04 * next_step7_reward + \
+                         0.8 * next_step8_reward
 
+            elif step <= max_step - 7:
+                next_step3_reward = self.reward_dict[step + 3]
+                next_step4_reward = self.reward_dict[step + 4]
+                next_step5_reward = self.reward_dict[step + 5]
+                next_step6_reward = self.reward_dict[step + 6]
+                next_step7_reward = self.reward_dict[step + 7]
+                reward = 0.05 * next_step3_reward + \
+                         0.05 * next_step4_reward + \
+                         0.05 * next_step5_reward + \
+                         0.05 * next_step6_reward + \
+                         0.8 * next_step7_reward
+
+            elif step <= max_step - 6:
+                next_step3_reward = self.reward_dict[step + 3]
+                next_step4_reward = self.reward_dict[step + 4]
+                next_step5_reward = self.reward_dict[step + 5]
+                next_step6_reward = self.reward_dict[step + 6]
+                reward = 0.05 * next_step3_reward + \
+                         0.05 * next_step4_reward + \
+                         0.1 * next_step5_reward + \
+                         0.8 * next_step6_reward
+
+            elif step <= max_step - 5:
                 next_step3_reward = self.reward_dict[step + 3]
                 next_step4_reward = self.reward_dict[step + 4]
                 next_step5_reward = self.reward_dict[step + 5]
@@ -72,7 +107,6 @@ class FB_RL:
             else:
                 print ("ERROR")
                 sys.exit()
-
             self.computed_reward_dict[step] = reward
 
     def get_action_feature_reward(self):
