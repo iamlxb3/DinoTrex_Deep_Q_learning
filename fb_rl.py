@@ -2,6 +2,7 @@ import collections
 import sys
 import os
 import numpy as np
+import random
 import torch
 from mlp_regressor import MlpRegressor_P
 from torch.utils.data import TensorDataset
@@ -24,14 +25,17 @@ class FB_RL:
         learning_rate_init = nn_config_dict['learning_rate_init']
         hidden_layer_sizes = nn_config_dict['hidden_layer_sizes']
         is_verbose = nn_config_dict['is_verbose']
+        tol = nn_config_dict['tol']
+        max_iter = nn_config_dict['max_iter']
+
         # ---------------------------------------------------------------
 
 
         # build regressor
         self.space_regressor = MlpRegressor_P(hidden_layer_sizes, learning_rate_init=learning_rate_init,
-                                              verbose = is_verbose)
+                                              verbose = is_verbose, tol = tol, max_iter = max_iter)
         self.idle_regressor = MlpRegressor_P(hidden_layer_sizes, learning_rate_init=learning_rate_init,
-                                             verbose=is_verbose)
+                                             verbose=is_verbose, tol = tol, max_iter = max_iter)
         #
 
     def compute_reward(self):
@@ -145,7 +149,7 @@ class FB_RL:
 
         return space_feature_list_all, space_value_list, idle_feature_list_all, idle_value_list
 
-    def get_action(self, feature_list, img_shape, is_CNN = False):
+    def get_action(self, feature_list, img_shape, is_CNN = False, random_prob = 0.2):
 
         if is_CNN:
             #feature_array = np.array(feature_list).reshape(*img_shape)
@@ -161,10 +165,18 @@ class FB_RL:
 
             print ("space: {}, idle: {}".format(space_reward_value, idle_reward_value))
 
-        if space_reward_value >= idle_reward_value:
-            action = 'space'
+
+        action_list = ['space', 'idle']
+        random_number = random.random()
+        if random_number <= random_prob:
+            #use_random_action = True
+            action = random.sample(action_list, 1)[0]
+            print ("Random prob now---{}, Random action---{}!!".format(random_prob, action))
         else:
-            action = 'idle'
+            if space_reward_value >= idle_reward_value:
+                action = 'space'
+            else:
+                action = 'idle'
 
         return action
 
@@ -344,4 +356,5 @@ class FB_RL:
                     file1.write(value_str + '\n')
             # ---------------------------------------------------------------------------------------------------------
         #sys.exit()
+
 

@@ -14,18 +14,22 @@ is_CNN = False
 # --------------------------------------
 ACTION_GAP_TIME = 0.25
 iteration = 1000
-THIN_FACTOR = 1
+THIN_FACTOR = 4
 alpha = 0.5
 SPACE_KEPT_NUMBER = 200
 IDLE_KEPT_NUMBER = 200
+random_prob = 0.4
+random_prob_decrease_value = (1-random_prob) / ((3/4)*iteration)
 # --------------------------------------
 
 # --------------------------------------
 # (2.) ANN config
 # --------------------------------------
 nn_config_dict = {}
-nn_config_dict['learning_rate_init'] = 0.0001
-nn_config_dict['hidden_layer_sizes'] = (100,1)
+nn_config_dict['learning_rate_init'] = 0.001
+nn_config_dict['max_iter'] = 3000
+nn_config_dict['tol'] = 1e-6
+nn_config_dict['hidden_layer_sizes'] = (50,1)
 nn_config_dict['is_verbose'] = True
 # --------------------------------------
 
@@ -92,7 +96,18 @@ for iteration_i in range(iteration):
                 action = 'space'
             else:
                 #action = 'idle'
-                action = rl_controller.get_action(evn_feature_list, img_shape, is_CNN = is_CNN)
+
+                # -----------------------------------------
+                # gradually decrease the random prob
+                # -----------------------------------------
+                if random_prob <= 0:
+                    random_prob = 0.0
+                else:
+                    random_prob -= random_prob_decrease_value
+                # -----------------------------------------
+
+                action = rl_controller.get_action(evn_feature_list, img_shape, is_CNN = is_CNN,
+                                                  random_prob = random_prob)
         # -------------------------------------------------
 
         # +++++++++++++++++++++++++++++++++++++++++++++++++

@@ -25,10 +25,10 @@ from sklearn.neural_network import MLPRegressor
 
 class MlpRegressor_P:
 
-    def __init__(self, hidden_layer_sizes, tol=1e-6, learning_rate_init=0.001, verbose = True):
+    def __init__(self, hidden_layer_sizes, tol=1e-6, learning_rate_init=0.001, verbose = True, max_iter = 2000):
         self.mlp_regressor = MLPRegressor(hidden_layer_sizes=hidden_layer_sizes,
                                           tol=tol, learning_rate_init=learning_rate_init,
-                                          max_iter=1000, random_state=1, verbose=verbose)
+                                          max_iter=max_iter, random_state=1, verbose=verbose)
 
     # ------------------------------------------------------------------------------------------------------------------
 
