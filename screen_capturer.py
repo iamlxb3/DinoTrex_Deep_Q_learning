@@ -79,10 +79,11 @@ class GameFb:
         n_m = self._compare_images(start_pic_path, path)
         #print("n_m: {}".format(n_m))
 
+        os.remove(path)  # remove file after comparision
+
         if n_m <= GAME_START_THRESHOLD:
             return True
         else:
-
             return False
 
     @property
@@ -102,10 +103,12 @@ class GameFb:
         n_m = self._compare_images(end_pic_path, path)
         #print("n_m: {}".format(n_m))
 
+        os.remove(path)  # remove file after comparision
+
+
         if n_m <= GAME_END_THRESHOLD:
             return True
         else:
-
             return False
 
 

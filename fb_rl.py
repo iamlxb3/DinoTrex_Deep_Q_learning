@@ -6,12 +6,13 @@ import random
 import torch
 from mlp_regressor import MlpRegressor_P
 from torch.utils.data import TensorDataset
+from wxx_cnn import CNN
 import io
 #sys.stdout = io.TextIOWrapper(sys.stdout.buffer,encoding='utf8')
 
 
 class FB_RL:
-    def __init__(self, nn_config_dict, alpha):
+    def __init__(self, nn_config_dict, alpha, is_CNN = False):
         self.reward_dict = collections.defaultdict(lambda :0)
         self.computed_reward_dict = collections.defaultdict(lambda: 0)
         self.action_dict = collections.defaultdict(lambda :'space')
@@ -27,16 +28,26 @@ class FB_RL:
         is_verbose = nn_config_dict['is_verbose']
         tol = nn_config_dict['tol']
         max_iter = nn_config_dict['max_iter']
+        fig_wid = nn_config_dict['fig_wid']
+        fig_len = nn_config_dict['fig_len']
 
         # ---------------------------------------------------------------
+        if is_CNN:
+            EPOCH = nn_config_dict['EPOCH']
+            BATCH_SIZE = nn_config_dict['BATCH_SIZE']
 
+            self.space_regressor = CNN(EPOCH, BATCH_SIZE, learning_rate_init, fig_wid, fig_len,verbose = is_verbose)
+            self.idle_regressor = CNN(EPOCH, BATCH_SIZE, learning_rate_init,fig_wid, fig_len, verbose = is_verbose)
+            #
 
-        # build regressor
-        self.space_regressor = MlpRegressor_P(hidden_layer_sizes, learning_rate_init=learning_rate_init,
-                                              verbose = is_verbose, tol = tol, max_iter = max_iter)
-        self.idle_regressor = MlpRegressor_P(hidden_layer_sizes, learning_rate_init=learning_rate_init,
-                                             verbose=is_verbose, tol = tol, max_iter = max_iter)
-        #
+        else:
+
+            # MLP
+            self.space_regressor = MlpRegressor_P(hidden_layer_sizes, learning_rate_init=learning_rate_init,
+                                                  verbose = is_verbose, tol = tol, max_iter = max_iter)
+            self.idle_regressor = MlpRegressor_P(hidden_layer_sizes, learning_rate_init=learning_rate_init,
+                                                 verbose=is_verbose, tol = tol, max_iter = max_iter)
+            #
 
     def compute_reward(self):
         max_step = max(list(self.reward_dict.keys()))
@@ -152,18 +163,19 @@ class FB_RL:
     def get_action(self, feature_list, img_shape, is_CNN = False, random_prob = 0.2):
 
         if is_CNN:
-            #feature_array = np.array(feature_list).reshape(*img_shape)
-            feature_array = np.array([[x.reshape(*img_shape)] for x in feature_list])
-            feature_tensor = torch.from_numpy(feature_array)
-            space_reward_value = 0.0
-            idle_reward_value = 0.0
+            feature_array = np.array([[np.array(feature_list).reshape(*img_shape)]])
+            #feature_array = np.array([[x.reshape(*img_shape)] for x in feature_list])
+            feature_tensor = torch.from_numpy(feature_array).float()
+            space_reward_value = self.space_regressor.regressor_dev(feature_tensor)
+            idle_reward_value = self.idle_regressor.regressor_dev(feature_tensor)
         else:
             feature_array = np.array(feature_list)
             feature_array = self.data_convert_before_training(feature_array, single_sample = True)
             space_reward_value = self.space_regressor.regressor_dev(feature_array)
             idle_reward_value = self.idle_regressor.regressor_dev(feature_array)
 
-            print ("space: {}, idle: {}".format(space_reward_value, idle_reward_value))
+
+        print ("space: {}, idle: {}".format(space_reward_value, idle_reward_value))
 
 
         action_list = ['space', 'idle']
@@ -230,11 +242,11 @@ class FB_RL:
         # CNN, convert to tensor
         # --------------------------------------------------------------------------------------------------------------
         if is_CNN:
-
+            print ("is_CNN: ", is_CNN)
             # space
             space_feature_array = np.array([[x.reshape(*img_shape)] for x in space_feature_list_all])
             space_value_array = np.array(space_value_list)
-            space_feature_tensor = torch.from_numpy(space_feature_array)
+            space_feature_tensor = torch.from_numpy(space_feature_array).float()
             space_value_tensor = torch.from_numpy(space_value_array)
             space_action_dataset = TensorDataset(space_feature_tensor, space_value_tensor)
             #
@@ -242,7 +254,7 @@ class FB_RL:
             # idle
             idle_feature_array = np.array([[x.reshape(*img_shape)] for x in idle_feature_list_all])
             idle_value_array = np.array(idle_value_list)
-            idle_feature_tensor = torch.from_numpy(idle_feature_array)
+            idle_feature_tensor = torch.from_numpy(idle_feature_array).float()
             idle_value_tensor = torch.from_numpy(idle_value_array)
             idle_action_dataset = TensorDataset(idle_feature_tensor, idle_value_tensor)
             #
@@ -250,8 +262,13 @@ class FB_RL:
             #print ("space_feature_tensor: {}".format(space_feature_tensor))
             #print ("space_value_tensor: {}".format(space_value_tensor))
             #print ("action_space_dataset: {}".format(action_space_dataset))
+            # print ("space_feature_tensor: ", space_feature_tensor)
+            # print ("space_value_tensor: ", space_value_tensor)
 
-            sys.exit()
+
+            self.space_regressor.regressor_train(space_action_dataset)
+            self.idle_regressor.regressor_train(idle_action_dataset)
+
 
         # --------------------------------------------------------------------------------------------------------------
         else:
