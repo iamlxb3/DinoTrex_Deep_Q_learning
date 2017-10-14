@@ -21,7 +21,9 @@ if __name__ == "__main__":
         # -------------------------------------------------------------------
         # FLAPPY BIRD CONFIG
         # -------------------------------------------------------------------
+        is_CUDA = True
         fig_wid, fig_len = 196, 265
+        ACTION_GAP_TIME = 0.15
         start_img = 'fb_start.png'
         end_img = 'fb_end.png'
         run_bbox = (748, 175, 1140, 705) #
@@ -29,11 +31,14 @@ if __name__ == "__main__":
         GAME_START_THRESHOLD = 1.0
         file1_name = 'fb_Q_learning_space_data.csv'
         file2_name = 'fb_Q_learning_idle_data.csv'
+        random_prob = 0.4
         # -------------------------------------------------------------------
     elif GAME == 'trex':
         # -------------------------------------------------------------------
         # T-rex CONFIG
         # -------------------------------------------------------------------
+        is_CUDA = True
+        ACTION_GAP_TIME = 0.12
         fig_wid, fig_len = 385, 85
         start_img = 'trex_start.png'
         end_img = 'trex_end.png'
@@ -42,6 +47,7 @@ if __name__ == "__main__":
         GAME_START_THRESHOLD = 5.0
         file1_name = 'trex_Q_learning_space_data.csv'
         file2_name = 'trex_Q_learning_idle_data.csv'
+        random_prob = -1
         # -------------------------------------------------------------------
     else:
         sys.exit()
@@ -55,9 +61,8 @@ if __name__ == "__main__":
     iteration = 1000
     THIN_FACTOR = 1
     alpha = 0.5
-    SPACE_KEPT_NUMBER = 200
-    IDLE_KEPT_NUMBER = 200
-    random_prob = 0.4
+    SPACE_KEPT_NUMBER = 400
+    IDLE_KEPT_NUMBER = 400
     random_prob_decrease_value = (1-random_prob) / ((3/4)*iteration)
     # --------------------------------------
 
@@ -74,7 +79,7 @@ if __name__ == "__main__":
     nn_config_dict['fig_wid'] = fig_wid
     nn_config_dict['fig_len'] = fig_len
     if is_CNN:
-        nn_config_dict['EPOCH'] = 1
+        nn_config_dict['EPOCH'] = 10
         nn_config_dict['BATCH_SIZE'] = 50
     # --------------------------------------
 
@@ -88,7 +93,7 @@ if __name__ == "__main__":
     game_fb = GameFb(run_bbox, end_bbox, GAME_START_THRESHOLD)
     bird_c = FlappyBirdController(app)
 
-    rl_controller = FB_RL(nn_config_dict,alpha,is_CNN = is_CNN)
+    rl_controller = FB_RL(nn_config_dict,alpha,is_CNN = is_CNN, is_CUDA = is_CUDA)
     # --------------------------------------
 
 

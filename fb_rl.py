@@ -12,7 +12,7 @@ import io
 
 
 class FB_RL:
-    def __init__(self, nn_config_dict, alpha, is_CNN = False):
+    def __init__(self, nn_config_dict, alpha, is_CNN = False, is_CUDA = False):
         self.reward_dict = collections.defaultdict(lambda :0)
         self.computed_reward_dict = collections.defaultdict(lambda: 0)
         self.action_dict = collections.defaultdict(lambda :'space')
@@ -20,6 +20,7 @@ class FB_RL:
         self.Q_dict = collections.defaultdict(lambda :0)
         self.step = 0
         self.alpha = alpha # RL learning rate (1-a)*old_Q + a * (....)
+        self.is_CUDA = is_CUDA
         # ----------------------------------------------------------------
         # ANN config
         # ----------------------------------------------------------------
@@ -38,6 +39,9 @@ class FB_RL:
 
             self.space_regressor = CNN(EPOCH, BATCH_SIZE, learning_rate_init, fig_wid, fig_len,verbose = is_verbose)
             self.idle_regressor = CNN(EPOCH, BATCH_SIZE, learning_rate_init,fig_wid, fig_len, verbose = is_verbose)
+            if self.is_CUDA:
+                self.space_regressor.cuda()
+                self.idle_regressor.cuda()
             #
 
         else:
@@ -87,21 +91,21 @@ class FB_RL:
                 next_step6_reward = self.reward_dict[step + 6]
                 reward = 0.05 * next_step3_reward + \
                          0.05 * next_step4_reward + \
-                         0.1 * next_step5_reward + \
-                         0.8 * next_step6_reward
+                         0.4 * next_step5_reward + \
+                         0.5 * next_step6_reward
 
             elif step <= max_step - 5:
                 next_step3_reward = self.reward_dict[step + 3]
                 next_step4_reward = self.reward_dict[step + 4]
                 next_step5_reward = self.reward_dict[step + 5]
-                reward = 0.1*next_step3_reward + 0.1*next_step4_reward + 0.8*next_step5_reward
+                reward = 0.1*next_step3_reward + 0.2*next_step4_reward + 0.6*next_step5_reward
 
             elif step <= max_step - 4:
 
                 next_step2_reward = self.reward_dict[step + 2]
                 next_step3_reward = self.reward_dict[step + 3]
                 next_step4_reward = self.reward_dict[step + 4]
-                reward = 0.1*next_step2_reward + 0.1*next_step3_reward + 0.8*next_step4_reward
+                reward = 0.1*next_step2_reward + 0.1*next_step3_reward + 0.7*next_step4_reward
 
             elif step <= max_step - 3:
                 next_step1_reward = self.reward_dict[step + 1]
@@ -112,7 +116,7 @@ class FB_RL:
             elif step <= max_step - 2:
                 next_step1_reward = self.reward_dict[step + 1]
                 next_step2_reward = self.reward_dict[step + 2]
-                reward = 0.2 * next_step1_reward + 0.8 * next_step2_reward
+                reward = 0.1 * next_step1_reward + 0.9 * next_step2_reward
 
             # this is the final step
             elif step <= max_step - 1:
@@ -123,6 +127,7 @@ class FB_RL:
                 print ("ERROR")
                 sys.exit()
             self.computed_reward_dict[step] = reward
+
 
     def get_action_feature_reward(self):
 
@@ -165,7 +170,10 @@ class FB_RL:
         if is_CNN:
             feature_array = np.array([[np.array(feature_list).reshape(*img_shape)]])
             #feature_array = np.array([[x.reshape(*img_shape)] for x in feature_list])
-            feature_tensor = torch.from_numpy(feature_array).float()
+            if self.is_CUDA:
+                feature_tensor = torch.from_numpy(feature_array).float().cuda()
+            else:
+                feature_tensor = torch.from_numpy(feature_array).float()
             space_reward_value = self.space_regressor.regressor_dev(feature_tensor)
             idle_reward_value = self.idle_regressor.regressor_dev(feature_tensor)
         else:
@@ -359,10 +367,10 @@ class FB_RL:
             if space_start_read_index < 0:
                 space_start_read_index = 0
 
-            print ("-------------------------------------")
-            print ("space_start_read_index: ", space_start_read_index)
+            #print ("-------------------------------------")
+            #print ("space_start_read_index: ", space_start_read_index)
             #print ("sample_feature_list: ", sample_feature_list)
-            print ("sample_value_list: ", sample_value_list)
+            #print ("sample_value_list: ", sample_value_list)
 
 
             with open (file_name, 'w') as file1:

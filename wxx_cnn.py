@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.utils.data as Data
-import torchvision
-import sys
+
 
 class CNN(nn.Module):
     def __init__(self, EPOCH, BATCH_SIZE, LR, fig_wid, fig_len, verbose = False):
@@ -54,13 +53,14 @@ class CNN(nn.Module):
         loss_func = nn.MSELoss()
         train_loader = self.data_process(train_dataset)
         print ("CNN start training...")
-        for epoch in range(self.EPOCH):
+        loss_list = []
+        for i, epoch in enumerate(range(self.EPOCH)):
             for step, (x, y) in enumerate(train_loader):  # gives batch data, normalize x when item
-                b_x = Variable(x)  # batch x
-                b_y = Variable(y)  # batch y
+                b_x = Variable(x).cuda()  # batch x
+                b_y = Variable(y).cuda()  # batch y
                 output = self.forward(b_x)  # cnn output
 
-                loss = loss_func(output, torch.unsqueeze(b_y.type(torch.FloatTensor), dim=1))  # mean squared error loss
+                loss = loss_func(output, torch.unsqueeze(b_y.type(torch.FloatTensor).cuda(), dim=1))  # mean squared error loss
                 optimizer.zero_grad()  # clear gradients for this training step
                 loss.backward()  # backpropagation, compute gradients
                 optimizer.step()
@@ -68,6 +68,13 @@ class CNN(nn.Module):
                 if self.is_verbose:
                     if step % 50 == 0:
                         print('Epoch: ', epoch, '| train loss: %.4f' % loss.data[0])
+            training_loss = loss.data[0]
+            loss_list.append(training_loss)
+            if i >= 3:
+                if loss_list[-1] > loss_list[-2] and loss_list[-1] > loss_list[-3]:
+                    print ("NO improvement within 3 epoches! Break!")
+                    break
+
                 #     pre_output = self.predict(test_x)
                 #     print(pre_output)
                 #     # pred_y = torch.max(test_output, 1)[1].data.squeeze()
@@ -78,7 +85,7 @@ class CNN(nn.Module):
 
     def regressor_dev(self, test_data):
         test_data = Variable(test_data)
-        test_output = self.forward(test_data).data.numpy()[0][0]
+        test_output = self.forward(test_data).cpu().data.numpy()[0][0]
         return test_output
 
     def regressor_train1(self, train_dataset):
