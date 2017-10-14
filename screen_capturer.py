@@ -26,10 +26,11 @@ import math
 # ----------------------------------------------------------------------------------------------------------------------
 
 class GameFb:
-    def __init__(self):
+    def __init__(self, run_bbox, end_bbox, GAME_START_THRESHOLD):
         self.pic_uuid = 0
-        self.run_bbox = (748, 175, 1140, 705)
-        self.end_bbox = (830, 525, 1065, 560)
+        self.run_bbox = run_bbox
+        self.end_bbox = end_bbox
+        self.GAME_START_THRESHOLD = GAME_START_THRESHOLD
 
     def _grab_save_img(self, path, bbox):
         im = ImageGrab.grab(bbox=bbox)
@@ -71,10 +72,9 @@ class GameFb:
             file_path = os.path.join(clear_folder, file)
             os.remove(file_path)
 
-    @property
     def is_game_start(self, start_img):
         #
-        GAME_START_THRESHOLD = 1.0
+
         #
         start_pics_folder_path = 'start_end_shots'
         start_pic_path = start_img
@@ -85,16 +85,15 @@ class GameFb:
         #
 
         n_m = self._compare_images(start_pic_path, path)
-        #print("n_m: {}".format(n_m))
+        print("n_m: {}".format(n_m))
 
         os.remove(path)  # remove file after comparision
 
-        if n_m <= GAME_START_THRESHOLD:
+        if n_m <= self.GAME_START_THRESHOLD:
             return True
         else:
             return False
 
-    @property
     def is_game_end(self, end_img):
 
         #

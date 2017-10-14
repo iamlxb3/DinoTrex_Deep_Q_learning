@@ -15,15 +15,36 @@ if __name__ == "__main__":
 
     is_CNN = True
     is_ANNs_ready = True
+    GAME = 'trex' # trex, fb
 
-
-    # -------------------------------------------------------------------
-    # FLAPPY BIRD CONFIG
-    # -------------------------------------------------------------------
-    fig_wid, fig_len = 196, 265
-    start_img = 'fb_start.png'
-    end_img = 'fb_end.png'
-    # -------------------------------------------------------------------
+    if GAME == 'fb':
+        # -------------------------------------------------------------------
+        # FLAPPY BIRD CONFIG
+        # -------------------------------------------------------------------
+        fig_wid, fig_len = 196, 265
+        start_img = 'fb_start.png'
+        end_img = 'fb_end.png'
+        run_bbox = (748, 175, 1140, 705) #
+        end_bbox = (830, 525, 1065, 560)
+        GAME_START_THRESHOLD = 1.0
+        file1_name = 'fb_Q_learning_space_data.csv'
+        file2_name = 'fb_Q_learning_idle_data.csv'
+        # -------------------------------------------------------------------
+    elif GAME == 'trex':
+        # -------------------------------------------------------------------
+        # T-rex CONFIG
+        # -------------------------------------------------------------------
+        fig_wid, fig_len = 385, 85
+        start_img = 'trex_start.png'
+        end_img = 'trex_end.png'
+        run_bbox = (570, 380, 1340, 550) #left, upper, right, and lower
+        end_bbox = (810, 390, 1100, 460)
+        GAME_START_THRESHOLD = 5.0
+        file1_name = 'trex_Q_learning_space_data.csv'
+        file2_name = 'trex_Q_learning_idle_data.csv'
+        # -------------------------------------------------------------------
+    else:
+        sys.exit()
 
 
     # --------------------------------------
@@ -61,7 +82,10 @@ if __name__ == "__main__":
     # INITIALISATION
     # --------------------------------------
     app = 'chrome'
-    game_fb = GameFb()
+
+    t_rex_run_bbox = (748, 175, 1140, 705)
+    t_rex_end_bbox = (748, 175, 1140, 705)
+    game_fb = GameFb(run_bbox, end_bbox, GAME_START_THRESHOLD)
     bird_c = FlappyBirdController(app)
 
     rl_controller = FB_RL(nn_config_dict,alpha,is_CNN = is_CNN)
@@ -136,12 +160,12 @@ if __name__ == "__main__":
                     # -----------------------------------------
 
                     action = rl_controller.get_action(evn_feature_list, img_shape, is_CNN = is_CNN,
-                                                      random_prob = random_prob)
+                                                      random_prob = random_prob, game = GAME)
             # -------------------------------------------------
 
             # +++++++++++++++++++++++++++++++++++++++++++++++++
 
-            print ("[action]: {}".format(action))
+            #print ("[action]: {}".format(action))
             # (2.) take action
             if action == 'space':
                 bird_c._press_key_space()
@@ -159,18 +183,19 @@ if __name__ == "__main__":
             rl_controller.env_dict[rl_controller.step] = evn_feature_list
             rl_controller.step += 1
 
-            is_game_end = game_fb.is_game_end
+            is_game_end = game_fb.is_game_end(end_img)
 
         reward = -1
 
         # update RL
         rl_controller.reward_dict[rl_controller.step] = reward
         rl_controller.compute_reward()
-        rl_controller.save_Q_learning_data(space_kept_number = SPACE_KEPT_NUMBER, idle_kept_number = IDLE_KEPT_NUMBER)
+        rl_controller.save_Q_learning_data(file1_name, file2_name,
+                                           space_kept_number = SPACE_KEPT_NUMBER, idle_kept_number = IDLE_KEPT_NUMBER)
         print ("Training start... ")
 
         print ("img_shape: ", img_shape)
-        rl_controller.train_rl(img_shape, is_CNN = is_CNN)
+        rl_controller.train_rl(img_shape, file1_name, file2_name, is_CNN = is_CNN)
         #
         print ("============================================")
         time.sleep(0.5)

@@ -54,33 +54,33 @@ class FB_RL:
         for step, reward in self.reward_dict.items():
             #print ("step: ", step)
 
-            if step <= max_step - 8:
-                next_step3_reward = self.reward_dict[step + 3]
-                next_step4_reward = self.reward_dict[step + 4]
-                next_step5_reward = self.reward_dict[step + 5]
-                next_step6_reward = self.reward_dict[step + 6]
-                next_step7_reward = self.reward_dict[step + 7]
-                next_step8_reward = self.reward_dict[step + 8]
-                reward = 0.04 * next_step3_reward +\
-                         0.04 * next_step4_reward + \
-                         0.04 * next_step5_reward + \
-                         0.04 * next_step6_reward + \
-                         0.04 * next_step7_reward + \
-                         0.8 * next_step8_reward
+            # if step <= max_step - 8:
+            #     next_step3_reward = self.reward_dict[step + 3]
+            #     next_step4_reward = self.reward_dict[step + 4]
+            #     next_step5_reward = self.reward_dict[step + 5]
+            #     next_step6_reward = self.reward_dict[step + 6]
+            #     next_step7_reward = self.reward_dict[step + 7]
+            #     next_step8_reward = self.reward_dict[step + 8]
+            #     reward = 0.04 * next_step3_reward +\
+            #              0.04 * next_step4_reward + \
+            #              0.04 * next_step5_reward + \
+            #              0.04 * next_step6_reward + \
+            #              0.04 * next_step7_reward + \
+            #              0.8 * next_step8_reward
+            #
+            # elif step <= max_step - 7:
+            #     next_step3_reward = self.reward_dict[step + 3]
+            #     next_step4_reward = self.reward_dict[step + 4]
+            #     next_step5_reward = self.reward_dict[step + 5]
+            #     next_step6_reward = self.reward_dict[step + 6]
+            #     next_step7_reward = self.reward_dict[step + 7]
+            #     reward = 0.05 * next_step3_reward + \
+            #              0.05 * next_step4_reward + \
+            #              0.05 * next_step5_reward + \
+            #              0.05 * next_step6_reward + \
+            #              0.8 * next_step7_reward
 
-            elif step <= max_step - 7:
-                next_step3_reward = self.reward_dict[step + 3]
-                next_step4_reward = self.reward_dict[step + 4]
-                next_step5_reward = self.reward_dict[step + 5]
-                next_step6_reward = self.reward_dict[step + 6]
-                next_step7_reward = self.reward_dict[step + 7]
-                reward = 0.05 * next_step3_reward + \
-                         0.05 * next_step4_reward + \
-                         0.05 * next_step5_reward + \
-                         0.05 * next_step6_reward + \
-                         0.8 * next_step7_reward
-
-            elif step <= max_step - 6:
+            if step <= max_step - 6:
                 next_step3_reward = self.reward_dict[step + 3]
                 next_step4_reward = self.reward_dict[step + 4]
                 next_step5_reward = self.reward_dict[step + 5]
@@ -160,7 +160,7 @@ class FB_RL:
 
         return space_feature_list_all, space_value_list, idle_feature_list_all, idle_value_list
 
-    def get_action(self, feature_list, img_shape, is_CNN = False, random_prob = 0.2):
+    def get_action(self, feature_list, img_shape, is_CNN = False, random_prob = 0.2, game = 'fb'):
 
         if is_CNN:
             feature_array = np.array([[np.array(feature_list).reshape(*img_shape)]])
@@ -177,8 +177,13 @@ class FB_RL:
 
         print ("space: {}, idle: {}".format(space_reward_value, idle_reward_value))
 
-
-        action_list = ['space', 'idle']
+        if game == 'fb':
+            action_list = ['space', 'idle']
+        elif game == 'trex':
+            action_list = ['space', 'idle','idle','idle']
+        else:
+            print ("Please type the right game!!")
+            sys.exit()
         random_number = random.random()
         if random_number <= random_prob:
             #use_random_action = True
@@ -204,16 +209,13 @@ class FB_RL:
         return output_list
 
 
-    def train_rl(self, img_shape, is_CNN = False):
+    def train_rl(self, img_shape, file1_name, file2_name, is_CNN = False):
 
         # # get the data to train
         # space_feature_list_all, space_value_list, idle_feature_list_all, idle_value_list =\
         #     self.get_action_feature_reward()
         # #
 
-        # read from Q-learning data
-        file1_name = 'Q_learning_space_data.csv'
-        file2_name = 'Q_learning_idle_data.csv'
 
         idle_feature_list_all = []
 
@@ -286,7 +288,7 @@ class FB_RL:
                 self.idle_regressor.regressor_train(idle_feature_list_all, idle_value_list)
 
 
-    def save_Q_learning_data(self, space_kept_number = 500, idle_kept_number = 500):
+    def save_Q_learning_data(self, file1_name, file2_name, space_kept_number = 500, idle_kept_number = 500):
 
 
         # get the data of last iteration
@@ -296,8 +298,8 @@ class FB_RL:
 
 
         # detect whether Q_learning file exist
-        file1_name = 'Q_learning_space_data.csv'
-        file2_name = 'Q_learning_idle_data.csv'
+        file1_name = file1_name
+        file2_name = file2_name
 
         is_file1 = os.path.isfile(file1_name)
         is_file2 = os.path.isfile(file2_name)
@@ -312,10 +314,10 @@ class FB_RL:
         file_name_list = [file1_name, file2_name]
         for i, is_file in enumerate(file_list):
             file_name = file_name_list[i]
-            if file_name == 'Q_learning_space_data.csv':
+            if file_name == file1_name:
                 feature_list_all = space_feature_list_all
                 value_list = space_value_list
-            elif file_name == 'Q_learning_idle_data.csv':
+            elif file_name == file2_name:
                 feature_list_all = idle_feature_list_all
                 value_list = idle_value_list
 
