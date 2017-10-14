@@ -25,6 +25,8 @@ class CNN(nn.Module):
             nn.MaxPool2d(2)             # -> (32, 7, 7)
         )
         self.out = nn.Linear(32 * int(fig_wid/4) * int(fig_len/4), 1)
+        self.fig_wid = fig_wid
+        self.fig_len = fig_len
         self.EPOCH = EPOCH
         self.BATCH_SIZE = BATCH_SIZE
         self.LR = LR
@@ -56,9 +58,6 @@ class CNN(nn.Module):
             for step, (x, y) in enumerate(train_loader):  # gives batch data, normalize x when item
                 b_x = Variable(x)  # batch x
                 b_y = Variable(y)  # batch y
-                # print ("b_x: ", b_x)
-                # print ("b_y: ", b_y)
-
                 output = self.forward(b_x)  # cnn output
 
                 loss = loss_func(output, torch.unsqueeze(b_y.type(torch.FloatTensor), dim=1))  # mean squared error loss

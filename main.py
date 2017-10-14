@@ -8,18 +8,29 @@ from fb_rl import FB_RL
 
 if __name__ == "__main__":
 
-    #website = 'http://flappybird.io/'
-    is_CNN = True
+    # [flappybird] http://flappybird.io/
+    # [google dinosaur] http://apps.thecodepost.org/trex/trex.html
 
-    # file exist
-    is_ANNs_ready = False
-    is_ANNs_ready = os.path.isfile('Q_learning_idle_data.csv')
+
+
+    is_CNN = True
+    is_ANNs_ready = True
+
+
+    # -------------------------------------------------------------------
+    # FLAPPY BIRD CONFIG
+    # -------------------------------------------------------------------
+    fig_wid, fig_len = 196, 265
+    start_img = 'fb_start.png'
+    end_img = 'fb_end.png'
+    # -------------------------------------------------------------------
 
 
     # --------------------------------------
     # (1.) RL config
     # --------------------------------------
-    ACTION_GAP_TIME = 0.25
+    img_compress_ratio = 0.5
+    ACTION_GAP_TIME = 0.15
     iteration = 1000
     THIN_FACTOR = 1
     alpha = 0.5
@@ -33,14 +44,14 @@ if __name__ == "__main__":
     # (2.) ANN config
     # --------------------------------------
     nn_config_dict = {}
-    nn_config_dict['learning_rate_init'] = 0.001
+    nn_config_dict['learning_rate_init'] = 0.0001
     nn_config_dict['max_iter'] = 3000
     nn_config_dict['tol'] = 1e-6
     nn_config_dict['hidden_layer_sizes'] = (50,1)
     nn_config_dict['is_verbose'] = True
-    fig_wid, fig_len = 392, 530
-    nn_config_dict['fig_wid'] = 392
-    nn_config_dict['fig_len'] = 530
+
+    nn_config_dict['fig_wid'] = fig_wid
+    nn_config_dict['fig_len'] = fig_len
     if is_CNN:
         nn_config_dict['EPOCH'] = 1
         nn_config_dict['BATCH_SIZE'] = 50
@@ -68,14 +79,14 @@ if __name__ == "__main__":
         rl_controller.step = 0
 
 
-        is_game_start = game_fb.is_game_start
+        is_game_start = game_fb.is_game_start(start_img)
         while not is_game_start:
             bird_c.press_key_space_n_times(1)
             print ("Wating for game to start...")
             time.sleep(0.2)
-            is_game_start = game_fb.is_game_start
+            is_game_start = game_fb.is_game_start(start_img)
 
-        is_game_end = game_fb.is_game_end
+        is_game_end = game_fb.is_game_end(end_img)
 
         print("Game running...")
         while not is_game_end:
@@ -85,9 +96,11 @@ if __name__ == "__main__":
             reward = 1
 
             # (0.) get evn
-            evn_feature_list, img_shape = game_fb.get_img_feature(thin_factor=THIN_FACTOR)
+            evn_feature_list, img_shape = game_fb.get_img_feature(thin_factor=THIN_FACTOR,
+                                                                  img_compress_ratio = img_compress_ratio)
+            #sys.exit()
             img_shape = (img_shape[1], img_shape[0])
-            #print ("img_shape: ", img_shape)
+            print ("img_shape: ", img_shape)
 
 
             # +++++++++++++++++++++++++++++++++++++++++++++++++
@@ -155,9 +168,8 @@ if __name__ == "__main__":
         rl_controller.compute_reward()
         rl_controller.save_Q_learning_data(space_kept_number = SPACE_KEPT_NUMBER, idle_kept_number = IDLE_KEPT_NUMBER)
         print ("Training start... ")
-        #
-        img_shape = (img_shape[0], int(img_shape[1]/THIN_FACTOR)) # the compression of the data throws away column information
-        #
+
+        print ("img_shape: ", img_shape)
         rl_controller.train_rl(img_shape, is_CNN = is_CNN)
         #
         print ("============================================")

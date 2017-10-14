@@ -13,7 +13,7 @@ from skimage import color
 from skimage import io
 from sklearn.decomposition import PCA
 import numpy as np
-
+import math
 
 # ----------------------------------------------------------------------------------------------------------------------
 # caputure image
@@ -36,12 +36,20 @@ class GameFb:
         im.save(path)
         self.pic_uuid += 1
 
-    def get_img_feature(self, thin_factor = 1, is_PCA = False):
+    def get_img_feature(self, thin_factor = 1, is_PCA = False, img_compress_ratio = 1.0):
         im = ImageGrab.grab(bbox=self.run_bbox).convert('1')
+        # image resize
+        original_size = im.size
+        compressed_size = (math.floor(img_compress_ratio*original_size[0]), math.floor(img_compress_ratio*original_size[1]))
+        #print ("compressed_size: ", compressed_size)
+        im = im.resize(compressed_size)
+        #
+        #print (im)
         arr = np.array(im)
         arr_shape = arr.shape
         arr = 1 * arr.flatten()
         im.save('test.png')
+        #im.save('test-{}.png'.format(self.pic_uuid))
         arr = arr[::thin_factor]
         if is_PCA:
             pca_path = 'fb_PCA'
@@ -64,12 +72,12 @@ class GameFb:
             os.remove(file_path)
 
     @property
-    def is_game_start(self):
+    def is_game_start(self, start_img):
         #
         GAME_START_THRESHOLD = 1.0
         #
         start_pics_folder_path = 'start_end_shots'
-        start_pic_path = 'start.png'
+        start_pic_path = start_img
         start_pic_path = os.path.join(start_pics_folder_path, start_pic_path)
         #
         path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
@@ -87,13 +95,13 @@ class GameFb:
             return False
 
     @property
-    def is_game_end(self):
+    def is_game_end(self, end_img):
 
         #
         GAME_END_THRESHOLD = 1.0
         #
         end_pics_folder_path = 'start_end_shots'
-        end_pic_path = 'end.png'
+        end_pic_path = end_img
         end_pic_path = os.path.join(end_pics_folder_path, end_pic_path)
         #
         path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
