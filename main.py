@@ -3,8 +3,8 @@ from screen_capturer import GameFb
 import time
 import random
 import sys
-import os
 from fb_rl import FB_RL
+from space_timer import SpaceTimer
 
 if __name__ == "__main__":
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         end_img = 'fb_end.png'
         run_bbox = (748, 175, 1140, 705) #
         end_bbox = (830, 525, 1065, 560)
-        GAME_START_THRESHOLD = 1.0
+        GAME_START_THRESHOLD = 6.0
         file1_name = 'fb_Q_learning_space_data.csv'
         file2_name = 'fb_Q_learning_idle_data.csv'
         random_prob = 0.4
@@ -38,16 +38,18 @@ if __name__ == "__main__":
         # T-rex CONFIG
         # -------------------------------------------------------------------
         is_CUDA = True
-        ACTION_GAP_TIME = 0.12
+        ACTION_GAP_TIME = 0.15
         fig_wid, fig_len = 385, 85
         start_img = 'trex_start.png'
         end_img = 'trex_end.png'
         run_bbox = (570, 380, 1340, 550) #left, upper, right, and lower
         end_bbox = (810, 390, 1100, 460)
-        GAME_START_THRESHOLD = 5.0
+        GAME_START_THRESHOLD = 6.0
         file1_name = 'trex_Q_learning_space_data.csv'
         file2_name = 'trex_Q_learning_idle_data.csv'
         random_prob = -1
+        space_time_gap = 0.28
+        space_timer = SpaceTimer(space_time_gap)
         # -------------------------------------------------------------------
     else:
         sys.exit()
@@ -57,7 +59,6 @@ if __name__ == "__main__":
     # (1.) RL config
     # --------------------------------------
     img_compress_ratio = 0.5
-    ACTION_GAP_TIME = 0.15
     iteration = 1000
     THIN_FACTOR = 1
     alpha = 0.5
@@ -87,15 +88,17 @@ if __name__ == "__main__":
     # INITIALISATION
     # --------------------------------------
     app = 'chrome'
-
-    t_rex_run_bbox = (748, 175, 1140, 705)
-    t_rex_end_bbox = (748, 175, 1140, 705)
     game_fb = GameFb(run_bbox, end_bbox, GAME_START_THRESHOLD)
     bird_c = FlappyBirdController(app)
-
     rl_controller = FB_RL(nn_config_dict,alpha,is_CNN = is_CNN, is_CUDA = is_CUDA)
     # --------------------------------------
+    img_shape = (fig_wid, fig_len)
+    # pre train CNN before playing CNN
 
+    if is_ANNs_ready:
+        print ("pre-training CNN...")
+        rl_controller.train_rl(img_shape, file1_name, file2_name, is_CNN=is_CNN)
+        print ("pre-training CNN complete...")
 
     # ======================================================================================================================
     # MAIN
@@ -119,17 +122,19 @@ if __name__ == "__main__":
 
         print("Game running...")
         while not is_game_end:
+            is_space_cooling_down = True
+
             sleep_time = ACTION_GAP_TIME
             time.sleep(sleep_time)
 
-            reward = 1
+
 
             # (0.) get evn
             evn_feature_list, img_shape = game_fb.get_img_feature(thin_factor=THIN_FACTOR,
                                                                   img_compress_ratio = img_compress_ratio)
             #sys.exit()
             img_shape = (img_shape[1], img_shape[0])
-            print ("img_shape: ", img_shape)
+            #print ("img_shape: ", img_shape)
 
 
             # +++++++++++++++++++++++++++++++++++++++++++++++++
@@ -163,7 +168,6 @@ if __name__ == "__main__":
                     else:
                         random_prob -= random_prob_decrease_value
                     # -----------------------------------------
-
                     action = rl_controller.get_action(evn_feature_list, img_shape, is_CNN = is_CNN,
                                                       random_prob = random_prob, game = GAME)
             # -------------------------------------------------
@@ -173,7 +177,11 @@ if __name__ == "__main__":
             #print ("[action]: {}".format(action))
             # (2.) take action
             if action == 'space':
+                if GAME == 'trex':
+                    is_space_cooling_down = space_timer.is_cooling_down(time.time())
                 bird_c._press_key_space()
+                if GAME == 'trex':
+                    space_timer.start(time.time())
             else:
                 pass
 
@@ -183,12 +191,20 @@ if __name__ == "__main__":
             #
 
             # (.) update rl dicts
-            rl_controller.action_dict[rl_controller.step] = action
-            rl_controller.reward_dict[rl_controller.step] = reward
-            rl_controller.env_dict[rl_controller.step] = evn_feature_list
-            rl_controller.step += 1
+            if GAME == 'trex' and not is_space_cooling_down and action == 'space':
+                is_game_end = game_fb.is_game_end(end_img)
+            else:
+                rl_controller.action_dict[rl_controller.step] = action
 
-            is_game_end = game_fb.is_game_end(end_img)
+                if action == 'space':
+                    reward = 0.9
+                elif action == 'idle':
+                    reward = 1
+
+                rl_controller.reward_dict[rl_controller.step] = reward
+                rl_controller.env_dict[rl_controller.step] = evn_feature_list
+                rl_controller.step += 1
+                is_game_end = game_fb.is_game_end(end_img)
 
         reward = -1
 
@@ -199,8 +215,9 @@ if __name__ == "__main__":
                                            space_kept_number = SPACE_KEPT_NUMBER, idle_kept_number = IDLE_KEPT_NUMBER)
         print ("Training start... ")
 
-        print ("img_shape: ", img_shape)
+        #print ("img_shape: ", img_shape)
         rl_controller.train_rl(img_shape, file1_name, file2_name, is_CNN = is_CNN)
+
         #
         print ("============================================")
         time.sleep(0.5)

@@ -185,15 +185,18 @@ class FB_RL:
 
         print ("space: {}, idle: {}".format(space_reward_value, idle_reward_value))
 
-        if game == 'fb':
-            action_list = ['space', 'idle']
-        elif game == 'trex':
-            action_list = ['space', 'idle','idle','idle']
-        else:
-            print ("Please type the right game!!")
-            sys.exit()
+
         random_number = random.random()
         if random_number <= random_prob:
+
+            if game == 'fb':
+                action_list = ['space', 'idle']
+            elif game == 'trex':
+                action_list = ['space', 'idle', 'idle', 'idle']
+            else:
+                print("Please type the right game!!")
+                sys.exit()
+
             #use_random_action = True
             action = random.sample(action_list, 1)[0]
             print ("Random prob now---{}, Random action---{}!!".format(random_prob, action))

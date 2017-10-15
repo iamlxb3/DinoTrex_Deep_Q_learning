@@ -1,17 +1,8 @@
 from PIL import ImageGrab, Image, ImageChops
-import time
-import cv2
 import os
-import shutil
-import sys
 import pickle
-import time
 from scipy.misc import imread
-from scipy.linalg import norm
 from scipy import sum, average
-from skimage import color
-from skimage import io
-from sklearn.decomposition import PCA
 import numpy as np
 import math
 
@@ -37,7 +28,7 @@ class GameFb:
         im.save(path)
         self.pic_uuid += 1
 
-    def get_img_feature(self, thin_factor = 1, is_PCA = False, img_compress_ratio = 1.0):
+    def get_img_feature(self, thin_factor = 1, img_compress_ratio = 1.0, is_img_save = False):
         im = ImageGrab.grab(bbox=self.run_bbox).convert('1')
         # image resize
         original_size = im.size
@@ -49,13 +40,10 @@ class GameFb:
         arr = np.array(im)
         arr_shape = arr.shape
         arr = 1 * arr.flatten()
-        im.save('test.png')
+        if is_img_save:
+            im.save('test.png')
         #im.save('test-{}.png'.format(self.pic_uuid))
         arr = arr[::thin_factor]
-        if is_PCA:
-            pca_path = 'fb_PCA'
-            pca = pickle.load(open(pca_path, "rb"))
-            arr = pca.transform(arr)[0]
         return arr, arr_shape
 
         # path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
