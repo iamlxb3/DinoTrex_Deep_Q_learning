@@ -24,6 +24,7 @@ game_cfg.start_pic_path = os.path.join('start_end_shots', 'trex_start.png')
 game_cfg.end_pic_path = os.path.join('start_end_shots', 'trex_end.png')
 game_cfg.start_bbox = (570, 200, 1340, 350)  # left, upper, right, and lower
 game_cfg.end_bbox = (800, 200, 1120, 225)
+game_cfg.run_bbox = (570, 200, 1340, 350)
 game_cfg.start_thres = 2
 game_cfg.end_thres = 1
 game_cfg.space_time_gap = 0.28
@@ -32,6 +33,11 @@ game_cfg.space_time_gap = 0.28
 # -------------------------------------------------------------------
 # RL CONFIG
 # -------------------------------------------------------------------
+rl_cfg = edict()
+rl_cfg.action_gap = 0.1
+
+
+
 img_compress_ratio = 0.5
 iteration = 1
 THIN_FACTOR = 1
@@ -46,5 +52,8 @@ random_prob_decrease_value = (1 - random_prob) / ((3 / 4) * iteration)
 # -------------------------------------------------------------------
 # CNN CONFIG
 # -------------------------------------------------------------------
+cnn_cfg = edict()
+cnn_cfg.down_sample_rate = 0.4
+cnn_cfg.his_step = 3
 
 # -------------------------------------------------------------------
