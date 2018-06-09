@@ -1,3 +1,14 @@
+"""
+Playing T-rex by Deep Q-learning
+Author: Xiaoxuan Wang & PJS
+
+T-rex url: chrome://dino/
+Press F12 in chrome, switch to console and type "Runner.instance_.setSpeed(100)" to control speed
+
+# temp
+torch.cuda.is_available()
+"""
+
 from flappy_bird_controller import FlappyBirdController
 from screen_capturer import GameFb
 import time

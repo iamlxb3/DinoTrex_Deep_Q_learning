@@ -6,7 +6,7 @@ import random
 import torch
 from mlp_regressor import MlpRegressor_P
 from torch.utils.data import TensorDataset
-from wxx_cnn import CNN
+from models import CNN
 import io
 #sys.stdout = io.TextIOWrapper(sys.stdout.buffer,encoding='utf8')
 

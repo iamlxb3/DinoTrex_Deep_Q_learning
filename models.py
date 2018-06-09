@@ -74,13 +74,7 @@ class CNN(nn.Module):
                 if loss_list[-1] > loss_list[-2] and loss_list[-1] > loss_list[-3]:
                     print ("NO improvement within 3 epoches! Break!")
                     break
-
-                #     pre_output = self.predict(test_x)
-                #     print(pre_output)
-                #     # pred_y = torch.max(test_output, 1)[1].data.squeeze()
-                #     # diff_tensor = torch.unsqueeze(pred_y-test_y, dim=1)
-                #     # test_loss = torch.sum(torch.squeeze(torch.mm(diff_tensor, torch.t(diff_tensor)))) / test_y.size(0)
-                #     # test_loss = loss_func(pre_output, torch.unsqueeze(Variable(test_y).type(torch.FloatTensor), dim=1))
+                    s
         print ("CNN training complete...")
 
     def regressor_dev(self, test_data):
