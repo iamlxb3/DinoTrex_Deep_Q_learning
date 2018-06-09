@@ -4,7 +4,6 @@ import os
 import numpy as np
 import random
 import torch
-from mlp_regressor import MlpRegressor_P
 from torch.utils.data import TensorDataset
 from models import CNN
 import io

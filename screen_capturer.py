@@ -1,10 +1,12 @@
 from PIL import ImageGrab, Image, ImageChops
 import os
+import sys
 import pickle
 from scipy.misc import imread
 from scipy import sum, average
 import numpy as np
 import math
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # caputure image
@@ -16,43 +18,38 @@ import math
 #     im.save('screen_shots/screenshot-{}.png'.format(i))
 # ----------------------------------------------------------------------------------------------------------------------
 
-class GameFb:
+class GameController:
     def __init__(self, run_bbox, end_bbox, GAME_START_THRESHOLD):
         self.pic_uuid = 0
         self.run_bbox = run_bbox
         self.end_bbox = end_bbox
         self.GAME_START_THRESHOLD = GAME_START_THRESHOLD
 
-    def _grab_save_img(self, path, bbox):
+    def _save_screenshot(self, path, bbox):
         im = ImageGrab.grab(bbox=bbox)
         im.save(path)
         self.pic_uuid += 1
 
-    def get_img_feature(self, thin_factor = 1, img_compress_ratio = 1.0, is_img_save = False):
+    def get_img_feature(self, thin_factor=1, img_compress_ratio=1.0, is_img_save=False):
         im = ImageGrab.grab(bbox=self.run_bbox).convert('1')
         # image resize
         original_size = im.size
-        compressed_size = (math.floor(img_compress_ratio*original_size[0]), math.floor(img_compress_ratio*original_size[1]))
-        #print ("compressed_size: ", compressed_size)
+        compressed_size = (
+            math.floor(img_compress_ratio * original_size[0]), math.floor(img_compress_ratio * original_size[1]))
+        # print ("compressed_size: ", compressed_size)
         im = im.resize(compressed_size)
         #
-        #print (im)
+        # print (im)
         arr = np.array(im)
         arr_shape = arr.shape
         arr = 1 * arr.flatten()
         if is_img_save:
             im.save('test.png')
-        #im.save('test-{}.png'.format(self.pic_uuid))
+        # im.save('test-{}.png'.format(self.pic_uuid))
         arr = arr[::thin_factor]
         return arr, arr_shape
 
-        # path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
-        # self._grab_save_img(path, self.run_bbox)
-        # img_vector = color.rgb2gray(io.imread(path))
-        # print ("img_vector: ".format(img_vector))
-        # sys.exit()
-
-    def clear_screen_shots(self):
+    def remove_screen_shots(self):
         self.pic_uuid = 0
         clear_folder = 'running_screen_shots'
         file_list = os.listdir(clear_folder)
@@ -61,26 +58,39 @@ class GameFb:
             os.remove(file_path)
 
     def is_game_start(self, start_img):
-        #
 
         #
-        start_pics_folder_path = 'start_end_shots'
-        start_pic_path = start_img
-        start_pic_path = os.path.join(start_pics_folder_path, start_pic_path)
+        start_pic_path = os.path.join('start_end_shots', start_img)
         #
-        path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
-        self._grab_save_img(path, self.run_bbox)
+        screenshot_path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
+        self._save_screenshot(screenshot_path, self.run_bbox)
         #
 
-        n_m = self._compare_images(start_pic_path, path)
-        print("n_m: {}".format(n_m))
+        diff = self._compare_images(start_pic_path, screenshot_path)
+        print("diff: {}".format(diff))
 
-        os.remove(path)  # remove file after comparision
+        #os.remove(screenshot_path)  # remove file after comparision
 
-        if n_m <= self.GAME_START_THRESHOLD:
+        if diff <= self.GAME_START_THRESHOLD:
             return True
         else:
             return False
+
+    def take_start_screen_shots(self):
+        """
+        Take screen shots in order to get start/end image
+        """
+        screenshot_path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
+        self._save_screenshot(screenshot_path, self.run_bbox)
+        self.pic_uuid += 1
+
+    def take_end_screen_shots(self):
+        """
+        Take screen shots in order to get start/end image
+        """
+        screenshot_path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
+        self._save_screenshot(screenshot_path, self.end_bbox)
+        self.pic_uuid += 1
 
     def is_game_end(self, end_img):
 
@@ -92,22 +102,20 @@ class GameFb:
         end_pic_path = os.path.join(end_pics_folder_path, end_pic_path)
         #
         path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
-        self._grab_save_img(path, self.end_bbox)
+        self._save_screenshot(path, self.end_bbox)
         #
 
         n_m = self._compare_images(end_pic_path, path)
-        #print("n_m: {}".format(n_m))
+        # print("n_m: {}".format(n_m))
 
         os.remove(path)  # remove file after comparision
-
 
         if n_m <= GAME_END_THRESHOLD:
             return True
         else:
             return False
 
-
-    def _compare_images(self,img1_path, img2_path):
+    def _compare_images(self, img1_path, img2_path):
 
         def _to_grayscale(arr):
             "If arr is a color image (3D array), convert it to grayscale (2D array)."
@@ -130,7 +138,7 @@ class GameFb:
         # calculate the difference and its norms
         diff = img1 - img2  # elementwise for scipy arrays
         m_norm = sum(abs(diff))  # Manhattan norm
-        #z_norm = norm(diff.ravel(), 0)  # Zero norm
+        # z_norm = norm(diff.ravel(), 0)  # Zero norm
 
         img_size = img1.size
         n_m = m_norm / img_size

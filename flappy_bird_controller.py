@@ -1,25 +1,16 @@
 import win32com.client as comctl
 import time
-import random
 
 
-
-class FlappyBirdController:
-    def __init__(self,app):
+class PlayerController:
+    def __init__(self, app):
         self.app = app
         self.wsh = comctl.Dispatch("WScript.Shell")
         self.wsh.AppActivate(app)
 
-        
-    def game_initialisation(self):
-        pass
-
-    def take_action(self, action):
-        if action == 'space':
-            self._press_key_space
-
-    def _press_key_space(self):
+    def _press_key_space(self, space_timer):
         self.wsh.SendKeys("{ }")
+        space_timer.t = time.time()
 
     def press_key_space_n_times(self, n):
         interval_t = 0.1
