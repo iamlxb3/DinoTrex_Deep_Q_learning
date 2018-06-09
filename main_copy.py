@@ -10,7 +10,7 @@ torch.cuda.is_available()
 """
 
 from flappy_bird_controller import PlayerController
-from screen_capturer import GameController
+from game_control import GameController
 import time
 import random
 import sys
@@ -90,12 +90,12 @@ if __name__ == "__main__":
         game_fb.remove_screen_shots()
         rl_controller.step = 0
 
-        is_game_start = game_fb.is_game_start(start_img)
+        is_game_start = game_fb.game_state_check(start_img)
         while not is_game_start:
             bird_c.press_key_space_n_times(1)
             print ("Wating for game to start...")
             time.sleep(0.2)
-            is_game_start = game_fb.is_game_start(start_img)
+            is_game_start = game_fb.game_state_check(start_img)
 
         is_game_end = game_fb.is_game_end(end_img)
 

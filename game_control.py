@@ -6,7 +6,7 @@ from scipy.misc import imread
 from scipy import sum, average
 import numpy as np
 import math
-
+import time
 
 # ----------------------------------------------------------------------------------------------------------------------
 # caputure image
@@ -24,6 +24,9 @@ class GameController:
         self.run_bbox = run_bbox
         self.end_bbox = end_bbox
         self.GAME_START_THRESHOLD = GAME_START_THRESHOLD
+
+    def game_intialize(self):
+        pass
 
     def _save_screenshot(self, path, bbox):
         im = ImageGrab.grab(bbox=bbox)
@@ -57,21 +60,16 @@ class GameController:
             file_path = os.path.join(clear_folder, file)
             os.remove(file_path)
 
-    def is_game_start(self, start_img):
+    def game_state_check(self, img_path, bbox, thres):
 
-        #
-        start_pic_path = os.path.join('start_end_shots', start_img)
-        #
         screenshot_path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
-        self._save_screenshot(screenshot_path, self.run_bbox)
+        self._save_screenshot(screenshot_path, bbox)
         #
 
-        diff = self._compare_images(start_pic_path, screenshot_path)
+        diff = self._compare_images(img_path, screenshot_path)
         print("diff: {}".format(diff))
 
-        #os.remove(screenshot_path)  # remove file after comparision
-
-        if diff <= self.GAME_START_THRESHOLD:
+        if diff <= thres:
             return True
         else:
             return False
@@ -91,29 +89,6 @@ class GameController:
         screenshot_path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
         self._save_screenshot(screenshot_path, self.end_bbox)
         self.pic_uuid += 1
-
-    def is_game_end(self, end_img):
-
-        #
-        GAME_END_THRESHOLD = 1.0
-        #
-        end_pics_folder_path = 'start_end_shots'
-        end_pic_path = end_img
-        end_pic_path = os.path.join(end_pics_folder_path, end_pic_path)
-        #
-        path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
-        self._save_screenshot(path, self.end_bbox)
-        #
-
-        n_m = self._compare_images(end_pic_path, path)
-        # print("n_m: {}".format(n_m))
-
-        os.remove(path)  # remove file after comparision
-
-        if n_m <= GAME_END_THRESHOLD:
-            return True
-        else:
-            return False
 
     def _compare_images(self, img1_path, img2_path):
 
@@ -143,3 +118,15 @@ class GameController:
         img_size = img1.size
         n_m = m_norm / img_size
         return n_m
+
+    def check_game_start(self, game_cfg, player_controller):
+        is_game_start = self.game_state_check(game_cfg.start_pic_path,
+                                                         game_cfg.start_bbox,
+                                                         game_cfg.start_thres)
+        while not is_game_start:
+            player_controller.press_key_space_n_times(1)
+            print("Wating for game to start...")
+            time.sleep(0.2)
+            is_game_start = self.game_state_check(game_cfg.start_pic_path,
+                                                             game_cfg.start_bbox,
+                                                             game_cfg.start_thres)

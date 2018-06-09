@@ -10,92 +10,60 @@ torch.cuda.is_available()
 """
 
 from flappy_bird_controller import PlayerController
-from screen_capturer import GameController
+from game_control import GameController
 import time
 import random
+import os
 import sys
 from fb_rl import FB_RL
 from space_timer import SpaceTimer
-
-if __name__ == "__main__":
-
-    is_CNN = True
-    is_ANNs_ready = True
-
-    # -------------------------------------------------------------------
-    # T-rex CONFIG
-    # -------------------------------------------------------------------
-    is_CUDA = True
-    ACTION_GAP_TIME = 0.15
-    fig_wid, fig_len = 385, 85
-    start_img = 'trex_start.png'
-    end_img = 'trex_end.png'
-    run_bbox = (570, 200, 1340, 350)  # left, upper, right, and lower
-    end_bbox = (800, 200, 1120, 225)
-    GAME_START_THRESHOLD = 6.0
-    file1_name = 'trex_Q_learning_space_data.csv'
-    file2_name = 'trex_Q_learning_idle_data.csv'
-    random_prob = -1
-    space_time_gap = 0.28
-    space_timer = SpaceTimer(space_time_gap)
-    # -------------------------------------------------------------------
+from config import game_cfg, general_cfg
 
 
-    # --------------------------------------
-    # (1.) RL config
-    # --------------------------------------
-    img_compress_ratio = 0.5
-    iteration = 1
-    THIN_FACTOR = 1
-    alpha = 0.5
-    SPACE_KEPT_NUMBER = 400
-    IDLE_KEPT_NUMBER = 400
-    random_prob_decrease_value = (1 - random_prob) / ((3 / 4) * iteration)
-    # --------------------------------------
+def play_1_game(game_controller, game_cfg, player_controller, space_timer):
+    is_game_end = game_controller.game_state_check(game_cfg.end_pic_path, game_cfg.end_bbox, game_cfg.end_thres)
+    print("Game running...")
+    while not is_game_end:
 
-    # --------------------------------------
-    # INITIALISATION
-    # --------------------------------------
-    app = 'chrome'
-    game_contorl = GameController(run_bbox, end_bbox, GAME_START_THRESHOLD)
-    player_control = PlayerController(app) # switch to chrome
-    # --------------------------------------
-    img_shape = (fig_wid, fig_len)
-    # pre train CNN before playing CNN
-
-    # ======================================================================================================================
-    # MAIN
-    # ======================================================================================================================
-    for iteration_i in range(iteration):
-
-        print("Start New Game, iteration: {}".format(iteration_i))
-        game_contorl.remove_screen_shots()
-
-        is_game_start = game_contorl.is_game_start(start_img)
-        while not is_game_start:
-            player_control.press_key_space_n_times(1)
-            print("Wating for game to start...")
-            time.sleep(0.2)
-            is_game_start = game_contorl.is_game_start(start_img)
-
-        is_game_end = game_contorl.is_game_end(end_img)
-
-        print("Game running...")
-        while not is_game_end:
+        if game_cfg.mode == 'random':
             random_number = random.randint(0, 1)
             if random_number == 0:
                 action = 'space'
             else:
                 action = 'idle'
+        else:
+            raise Exception("Invalid game mode: ", game_cfg.mode)
 
-            if action == 'space':
-                is_space_cooling_down = space_timer.is_cooling_down(time.time())
-                if is_space_cooling_down:
-                    player_control._press_key_space(space_timer)
-            else:
-                pass
-
+        print("Action: ", action)
+        if action == 'space':
+            is_space_cooling_down = space_timer.is_cooling_down(time.time())
+            if is_space_cooling_down:
+                player_controller._press_key_space(space_timer)
+        else:
+            pass
+        is_game_end = game_controller.game_state_check(game_cfg.end_pic_path, game_cfg.end_bbox, game_cfg.end_thres)
         time.sleep(0.2)
 
 
-        # ======================================================================================================================
+if __name__ == "__main__":
+
+    # ----------------------------------------------------------------------------
+    # INITIALISATION
+    # ----------------------------------------------------------------------------
+    game_controller = GameController(game_cfg.start_bbox, game_cfg.end_bbox, game_cfg.start_thres)
+    player_controller = PlayerController(general_cfg.app)  # switch to chrome
+    player_controller.activate_chrome()
+    space_timer = SpaceTimer(game_cfg.space_time_gap)
+    # ----------------------------------------------------------------------------
+
+    for N in range(game_cfg.iteration):
+        print("Start New Game, iteration: {}".format(N))
+
+        # (1.) remove all screen shots of last game
+        game_controller.remove_screen_shots()
+
+        # (2.) make sure game is ready to go
+        game_controller.check_game_start(game_cfg, player_controller)
+
+        # (3.) play game once
+        play_1_game(game_controller, game_cfg, player_controller, space_timer)

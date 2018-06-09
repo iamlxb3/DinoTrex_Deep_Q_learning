@@ -1,5 +1,5 @@
 import time
-from screen_capturer import GameController
+from game_control import GameController
 
 
 if __name__ == '__main__':
