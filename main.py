@@ -38,10 +38,15 @@ def play_1_game(game_controller, game_cfg, player_controller, space_timer, repla
 
     while not is_game_end:
 
+        # --------------------------------------------------------------------------------------------------------------
         # (0.) initialize
+        # --------------------------------------------------------------------------------------------------------------
         is_space_cooling_down = True
+        # --------------------------------------------------------------------------------------------------------------
 
+        # --------------------------------------------------------------------------------------------------------------
         # (1.) choose an action
+        # --------------------------------------------------------------------------------------------------------------
         if game_cfg.mode == 'random':
             random_number = random.randint(0, 1)
             if random_number == 0:
@@ -50,23 +55,26 @@ def play_1_game(game_controller, game_cfg, player_controller, space_timer, repla
                 action = 'idle'
         else:
             raise Exception("Invalid game mode: ", game_cfg.mode)
+        # --------------------------------------------------------------------------------------------------------------
 
+        # --------------------------------------------------------------------------------------------------------------
         # (2.) get the env before
+        # --------------------------------------------------------------------------------------------------------------
         evn_arr, env_arr_shape = img_arr_capture(game_cfg.run_bbox,
-                                                       step=step,
-                                                       down_sample_rate=cnn_cfg.down_sample_rate,
-                                                       is_img_save=True)
+                                                 step=step,
+                                                 down_sample_rate=cnn_cfg.down_sample_rate,
+                                                 is_img_save=True)
         envs.append(evn_arr)
         envs_shapes.append(env_arr_shape)
-        #
+        # --------------------------------------------------------------------------------------------------------------
 
+        # --------------------------------------------------------------------------------------------------------------
         # (3.) take the action
-
-        # input for cnn
+        # --------------------------------------------------------------------------------------------------------------
         cnn_input = []
         evn_arr = np.expand_dims(evn_arr, axis=0)
-        cnn_input.append(evn_arr) # current env array
-        for i in range(cnn_cfg.his_step): # history env array
+        cnn_input.append(evn_arr)  # current env array
+        for i in range(cnn_cfg.his_step):  # history env array
             his_index = step - i
             if his_index < 0:
                 his_index = 0
@@ -85,8 +93,7 @@ def play_1_game(game_controller, game_cfg, player_controller, space_timer, repla
         else:
             pass
         actions.append(action)
-        #
-
+        # --------------------------------------------------------------------------------------------------------------
 
         is_game_end = game_controller.game_state_check(game_cfg.end_pic_path, game_cfg.end_bbox, game_cfg.end_thres)
 
@@ -98,23 +105,24 @@ def play_1_game(game_controller, game_cfg, player_controller, space_timer, repla
     # TODO convert the standard format for exprience replay
     assert len(envs) == len(envs_shapes) == len(actions) == len(cnn_inputs), "Length of env, action not equal!"
 
-    # cnn_inputs
-
+    # ------------------------------------------------------------------------------------------------------------------
     # simplfied version of basic reward
+    # ------------------------------------------------------------------------------------------------------------------
     pos_max_reward = 1
-    neg_max_reward = -1.2 # TODO, HP
+    neg_max_reward = -1.2  # TODO, HP
     rewards = [pos_max_reward for _ in range(len(envs))]
-    critical_pos = -5 # TODO, HP
-    span = 5 # TODO, HP
+    critical_pos = -5  # TODO, HP
+    span = 5  # TODO, HP
     rewards[-5:] = [neg_max_reward for _ in range(5)]
     for i in range(span):
         if i == 0:
             continue
         index = critical_pos - i
         rewards[index] = neg_max_reward + i * (pos_max_reward - neg_max_reward) / span
+    # ------------------------------------------------------------------------------------------------------------------
+
 
     # TODO, compute the Q_next best value
-
 
 
     #
