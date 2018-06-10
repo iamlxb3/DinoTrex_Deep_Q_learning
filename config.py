@@ -17,7 +17,7 @@ general_cfg.app = 'chrome'
 # -------------------------------------------------------------------
 game_cfg = edict()
 game_cfg.mode = 'random'
-game_cfg.iteration = 50
+game_cfg.iteration =  10
 game_cfg.action_gap = 0.15
 game_cfg.img_shape = (385, 85)
 game_cfg.start_pic_path = os.path.join('start_end_shots', 'trex_start.png')
@@ -43,7 +43,7 @@ rl_cfg.neg_span = 4 # eg 1, 1, 1, 0.5, 0, -0.5, -1, ... (span = 4)
 
 
 img_compress_ratio = 0.5
-iteration = 1
+iteration = 5
 THIN_FACTOR = 1
 alpha = 0.5
 SPACE_KEPT_NUMBER = 400

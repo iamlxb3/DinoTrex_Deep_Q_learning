@@ -42,7 +42,8 @@ class RlRecorder:
         return cnn_input
 
     def score_record(self, game_cfg):
-        score_capture(game_cfg.score_bbox)
+        score = score_capture(game_cfg.score_bbox)
+        return score
 
     def rewards_compute(self, rl_cfg):
         rewards = [rl_cfg.pos_max_reward for _ in range(len(self.envs))]

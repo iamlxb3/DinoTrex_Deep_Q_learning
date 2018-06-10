@@ -63,9 +63,7 @@ def play_1_game(game_index, game_controller, game_cfg, player_controller, space_
     rl_recorder.replays_update(game_index)
 
 
-    rl_recorder.replay_check()
-    import ipdb
-    ipdb.set_trace()
+    #rl_recorder.replay_check()
     return score
 
 
