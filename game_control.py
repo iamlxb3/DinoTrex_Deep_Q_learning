@@ -4,19 +4,11 @@ import sys
 import pickle
 from scipy.misc import imread
 from scipy import sum, average
+from utils import compare_images
 import numpy as np
 import math
 import time
 
-# ----------------------------------------------------------------------------------------------------------------------
-# caputure image
-# ----------------------------------------------------------------------------------------------------------------------
-# for i in range(1000):
-#     time.sleep(0.5)
-#     im = ImageGrab.grab(bbox=(0,280,405,820))
-#     #im = ImageGrab.grab() full screen
-#     im.save('screen_shots/screenshot-{}.png'.format(i))
-# ----------------------------------------------------------------------------------------------------------------------
 
 class GameController:
     def __init__(self, run_bbox, end_bbox, GAME_START_THRESHOLD):
@@ -25,15 +17,12 @@ class GameController:
         self.end_bbox = end_bbox
         self.GAME_START_THRESHOLD = GAME_START_THRESHOLD
 
-    def game_intialize(self):
-        pass
-
     def _save_screenshot(self, path, bbox):
         im = ImageGrab.grab(bbox=bbox)
         im.save(path)
         self.pic_uuid += 1
 
-    def get_img_feature(self, thin_factor=1, img_compress_ratio=1.0, is_img_save=False):
+    def img_feature_get(self, thin_factor=1, img_compress_ratio=1.0, is_img_save=False):
         im = ImageGrab.grab(bbox=self.run_bbox).convert('1')
         # image resize
         original_size = im.size
@@ -60,73 +49,47 @@ class GameController:
             file_path = os.path.join(clear_folder, file)
             os.remove(file_path)
 
-    def game_state_check(self, img_path, bbox, thres):
-
-        screenshot_path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
-        self._save_screenshot(screenshot_path, bbox)
-        #
-
-        diff = self._compare_images(img_path, screenshot_path)
-        print("diff: {}".format(diff))
-
-        if diff <= thres:
-            return True
-        else:
-            return False
-
-    def take_start_screen_shots(self):
-        """
-        Take screen shots in order to get start/end image
-        """
-        screenshot_path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
-        self._save_screenshot(screenshot_path, self.run_bbox)
-        self.pic_uuid += 1
-
-    def take_end_screen_shots(self):
-        """
-        Take screen shots in order to get start/end image
-        """
-        screenshot_path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
-        self._save_screenshot(screenshot_path, self.end_bbox)
-        self.pic_uuid += 1
-
-    def _compare_images(self, img1_path, img2_path):
-
-        def _to_grayscale(arr):
-            "If arr is a color image (3D array), convert it to grayscale (2D array)."
-            if len(arr.shape) == 3:
-                return average(arr, -1)  # average over the last axis (color channels)
-            else:
-                return arr
-
-        def _normalize(arr):
-            rng = arr.max() - arr.min()
-            amin = arr.min()
-            return (arr - amin) * 255 / rng
-
-        img1 = _to_grayscale(imread(img1_path).astype(float))
-        img2 = _to_grayscale(imread(img2_path).astype(float))
-
-        # normalize to compensate for exposure difference
-        img1 = _normalize(img1)
-        img2 = _normalize(img2)
-        # calculate the difference and its norms
-        diff = img1 - img2  # elementwise for scipy arrays
-        m_norm = sum(abs(diff))  # Manhattan norm
-        # z_norm = norm(diff.ravel(), 0)  # Zero norm
-
-        img_size = img1.size
-        n_m = m_norm / img_size
-        return n_m
-
     def check_game_start(self, game_cfg, player_controller):
         is_game_start = self.game_state_check(game_cfg.start_pic_path,
-                                                         game_cfg.start_bbox,
-                                                         game_cfg.start_thres)
+                                              game_cfg.start_bbox,
+                                              game_cfg.start_thres,
+                                              is_save=False)
         while not is_game_start:
             player_controller.press_key_space_n_times(1)
             print("Wating for game to start...")
             time.sleep(0.2)
             is_game_start = self.game_state_check(game_cfg.start_pic_path,
-                                                             game_cfg.start_bbox,
-                                                             game_cfg.start_thres)
+                                                  game_cfg.start_bbox,
+                                                  game_cfg.start_thres,
+                                                  is_save=False)
+
+    def game_state_check(self, img_path, bbox, thres, is_save=False, verbose=True):
+        """
+        Check the state of Game by comparing between current screen shot and start/end pic
+
+        :param img_path: path to start/end pic
+        :param bbox: bbox for current screenshot
+        :param thres: if diff < threshold -> images are almost the sam e-> check pass
+        :param is_save: whether to save the screenshot
+        """
+
+        # TODO ADD is_save etc.
+        img1 = imread(img_path).astype(float)
+        if is_save:
+            screenshot_path = 'running_screen_shots/{}.png'.format(self.pic_uuid)
+            self._save_screenshot(screenshot_path, bbox)
+            screenshot = imread(screenshot_path)
+        else:
+            screenshot = np.array(ImageGrab.grab(bbox=bbox)).astype(float)
+        #
+
+
+        diff = compare_images(img1, screenshot)
+
+        if verbose:
+            print("diff: {}".format(diff))
+
+        if diff <= thres:
+            return True
+        else:
+            return False

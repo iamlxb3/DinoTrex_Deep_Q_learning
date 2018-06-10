@@ -9,13 +9,13 @@ Press F12 in chrome, switch to console and type "Runner.instance_.setSpeed(100)"
 torch.cuda.is_available()
 """
 
-from flappy_bird_controller import PlayerController
+from player_control import PlayerController
 from game_control import GameController
 import time
 import random
 import sys
 from fb_rl import FB_RL
-from space_timer import SpaceTimer
+from timer import Timer
 
 if __name__ == "__main__":
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     file2_name = 'trex_Q_learning_idle_data.csv'
     random_prob = -1
     space_time_gap = 0.28
-    space_timer = SpaceTimer(space_time_gap)
+    space_timer = Timer(space_time_gap)
     # -------------------------------------------------------------------
 
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
 
             # (0.) get evn
-            evn_feature_list, img_shape = game_fb.get_img_feature(thin_factor=THIN_FACTOR,
+            evn_feature_list, img_shape = game_fb.img_feature_get(thin_factor=THIN_FACTOR,
                                                                   img_compress_ratio = img_compress_ratio)
             #sys.exit()
             img_shape = (img_shape[1], img_shape[0])
@@ -157,7 +157,7 @@ if __name__ == "__main__":
             # (2.) take action
             if action == 'space':
                 if GAME == 'trex':
-                    is_space_cooling_down = space_timer.is_cooling_down(time.time())
+                    is_space_cooling_down = space_timer.is_space_cooling_down(time.time())
                 bird_c._press_key_space()
                 if GAME == 'trex':
                     space_timer.start(time.time())

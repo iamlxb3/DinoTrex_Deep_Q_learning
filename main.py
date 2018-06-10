@@ -9,150 +9,111 @@ Press F12 in chrome, switch to console and type "Runner.instance_.setSpeed(100)"
 torch.cuda.is_available()
 """
 
-from flappy_bird_controller import PlayerController
+from player_control import PlayerController
 from game_control import GameController
+from rl_recorder import RlRecorder
 import time
 import random
+import pandas as pd
 import numpy as np
 import ipdb
 import os
 import sys
 from fb_rl import FB_RL
-from space_timer import SpaceTimer
+from timer import Timer
 from config import game_cfg, general_cfg, cnn_cfg, rl_cfg
-from utils import img_arr_capture
+from utils import img_arr_capture, score_capture
 
 
-def play_1_game(game_controller, game_cfg, player_controller, space_timer, replay_tuple=None):
-    is_game_end = game_controller.game_state_check(game_cfg.end_pic_path, game_cfg.end_bbox, game_cfg.end_thres)
+def play_1_game(game_controller, game_cfg, player_controller, space_timer, rl_recorder):
     print("Game running...")
-    step = 0
+    rl_recorder.reset()
 
-    if not replay_tuple:
-        replay_tuple = []
-
-    envs = []
-    envs_shapes = []
-    cnn_inputs = []
-    actions = []
-
+    is_game_end = False  # game_controller.game_state_check(game_cfg.end_pic_path, game_cfg.end_bbox, game_cfg.end_thres)
     while not is_game_end:
-
+        time1 = time.time()
         # --------------------------------------------------------------------------------------------------------------
         # (0.) initialize
         # --------------------------------------------------------------------------------------------------------------
         is_space_cooling_down = True
-        # --------------------------------------------------------------------------------------------------------------
 
-        # --------------------------------------------------------------------------------------------------------------
         # (1.) choose an action
-        # --------------------------------------------------------------------------------------------------------------
-        if game_cfg.mode == 'random':
-            random_number = random.randint(0, 1)
-            if random_number == 0:
-                action = 'space'
-            else:
-                action = 'idle'
-        else:
-            raise Exception("Invalid game mode: ", game_cfg.mode)
-        # --------------------------------------------------------------------------------------------------------------
+        action = player_controller.action_choose(game_cfg)
 
-        # --------------------------------------------------------------------------------------------------------------
-        # (2.) get the env before
-        # --------------------------------------------------------------------------------------------------------------
-        evn_arr, env_arr_shape = img_arr_capture(game_cfg.run_bbox,
-                                                 step=step,
-                                                 down_sample_rate=cnn_cfg.down_sample_rate,
-                                                 is_img_save=True)
-        envs.append(evn_arr)
-        envs_shapes.append(env_arr_shape)
-        # --------------------------------------------------------------------------------------------------------------
+        # (2.) record envs
+        rl_recorder.envs_record(game_cfg, cnn_cfg)
 
-        # --------------------------------------------------------------------------------------------------------------
         # (3.) take the action
-        # --------------------------------------------------------------------------------------------------------------
-        cnn_input = []
-        evn_arr = np.expand_dims(evn_arr, axis=0)
-        cnn_input.append(evn_arr)  # current env array
-        for i in range(cnn_cfg.his_step):  # history env array
-            his_index = step - i
-            if his_index < 0:
-                his_index = 0
-            arr = envs[his_index]
-            arr = np.expand_dims(arr, axis=0)
-            cnn_input.append(arr)
+        action = player_controller.action_take(action, space_timer)  # action taken
+        rl_recorder.actions.append(action)  # record actions
 
-        cnn_input = np.concatenate(cnn_input, axis=0)
-        cnn_inputs.append(cnn_input)
-
-        print("Action: ", action)
-        if action == 'space':
-            is_space_cooling_down = space_timer.is_cooling_down(time.time())
-            if is_space_cooling_down:
-                player_controller._press_key_space(space_timer)
-        else:
-            pass
-        actions.append(action)
-        # --------------------------------------------------------------------------------------------------------------
-
-        is_game_end = game_controller.game_state_check(game_cfg.end_pic_path, game_cfg.end_bbox, game_cfg.end_thres)
+        # (4.) check game end
+        is_game_end = game_controller.game_state_check(game_cfg.end_pic_path,
+                                                       game_cfg.end_bbox,
+                                                       game_cfg.end_thres,
+                                                       is_save=False)
 
         time.sleep(rl_cfg.action_gap)
 
-        # add 1 step
-        step += 1
+        # (5.) update step & save time
+        rl_recorder.step += 1
+        time2 = time.time()
+        rl_recorder.times.append(time2 - time1)
+
+    # get score
+    score = rl_recorder.score_record(game_cfg)
 
     # TODO convert the standard format for exprience replay
-    assert len(envs) == len(envs_shapes) == len(actions) == len(cnn_inputs), "Length of env, action not equal!"
+    assert len(rl_recorder.envs) == len(rl_recorder.actions) == len(rl_recorder.cnn_inputs), "Length of env, action not equal!"
 
-    # ------------------------------------------------------------------------------------------------------------------
-    # simplfied version of basic reward
-    # ------------------------------------------------------------------------------------------------------------------
-    pos_max_reward = 1
-    neg_max_reward = -1.2  # TODO, HP
-    rewards = [pos_max_reward for _ in range(len(envs))]
-    critical_pos = -5  # TODO, HP
-    span = 5  # TODO, HP
-    rewards[-5:] = [neg_max_reward for _ in range(5)]
-    for i in range(span):
-        if i == 0:
-            continue
-        index = critical_pos - i
-        rewards[index] = neg_max_reward + i * (pos_max_reward - neg_max_reward) / span
-    # ------------------------------------------------------------------------------------------------------------------
-
+    # compute reward
+    rl_recorder.rewards_compute(rl_cfg)
 
     # TODO, compute the Q_next best value
 
+    # update replays
+    rl_recorder.replays_update()
 
-    #
-    replay_tuple.extend(list(zip(cnn_inputs, rewards)))
 
-    ipdb.set_trace()
+    return score
+
+
+def initialise():
+    game_controller = GameController(game_cfg.start_bbox, game_cfg.end_bbox, game_cfg.start_thres)
+    player_controller = PlayerController(general_cfg.app)
+    policy = RlRecorder()
+    # TODO, read replay from disk
+    player_controller.activate_chrome()  # switch to chrome
+    timer = Timer(game_cfg.space_time_gap)
+    performances = {'iter': [], 'score': []}
+    return game_controller, player_controller, policy, timer, performances,
+
+
+def performances_save(save_path, performances):
+    performances_df = pd.DataFrame(performances)
+    performances_df.to_csv(save_path, index=False)
+    print("save result df to {}".format(save_path))
 
 
 if __name__ == "__main__":
 
-    # ----------------------------------------------------------------------------
-    # INITIALISATION
-    # ----------------------------------------------------------------------------
-    game_controller = GameController(game_cfg.start_bbox, game_cfg.end_bbox, game_cfg.start_thres)
-    player_controller = PlayerController(general_cfg.app)  # switch to chrome
-    player_controller.activate_chrome()
-    space_timer = SpaceTimer(game_cfg.space_time_gap)
-    replay_tuple = tuple()
-    # ----------------------------------------------------------------------------
+    # (0.) initialise
+    game_controller, player_controller, rl_recorder, timer, performances = initialise()
 
     for N in range(game_cfg.iteration):
         print("Start New Game, iteration: {}".format(N))
 
         # (1.) remove all screen shots of last game
         game_controller.remove_screen_shots()
+        time.sleep(0.5)
 
         # (2.) make sure game is ready to go
         game_controller.check_game_start(game_cfg, player_controller)
 
         # (3.) play game once
-        play_1_game(game_controller, game_cfg, player_controller, space_timer)
+        score = play_1_game(game_controller, game_cfg, player_controller, timer, rl_recorder)
 
-        # TODO, extract score from image
+        # (4.) record & save results
+        performances['iter'].append(N)
+        performances['score'].append(score)
+        performances_save("performances.csv", performances)
