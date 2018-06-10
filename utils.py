@@ -31,7 +31,7 @@ def img_arr_capture(run_bbox, step=0, down_sample_rate=1.0, is_img_save=False):
     im = im.resize(downsampled_size)
 
     # get the array
-    arr = np.array(im)
+    arr = np.array(im).astype(int)
     arr_shape = arr.shape
 
     if is_img_save:

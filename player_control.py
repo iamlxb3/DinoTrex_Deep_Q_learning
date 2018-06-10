@@ -20,7 +20,7 @@ class PlayerController:
             time.sleep(interval_t)
             self.wsh.SendKeys("{ }")
 
-    def action_choose(self, game_cfg):
+    def action_choose(self, game_cfg, cnn_input=None):
         if game_cfg.mode == 'random':
             random_number = random.randint(0, 1)
             if random_number == 0:
