@@ -1,12 +1,12 @@
 import time
 import random
 import math
+import torch
 import numpy as np
 import ipdb
 from PIL import ImageGrab
 import pytesseract
 import scipy
-
 
 pytesseract.pytesseract.tesseract_cmd = r'D:\Program Files (x86)\Tesseract-OCR\tesseract.exe'
 
@@ -86,3 +86,38 @@ def compare_images(img1, img2):
     n_m = m_norm / img_size
 
     return n_m
+
+
+def data_loader( game_index_now, replays_paths, batch_size, neg_sample_rate=0.5,
+                index_range=float('inf')):
+    import pickle
+    replays = pickle.load(open(replays_paths, 'rb'))
+    neg_replays = [x for x in replays if x[1] <= 0 and game_index_now - x[-2] <= index_range]
+    pos_replays = [x for x in replays if x[1] > 0 and game_index_now - x[-2] <= index_range]
+    neg_N = int(math.ceil(neg_sample_rate * len(pos_replays)))
+    pos_N = len(pos_replays)
+
+    while 1:
+        batch_samples = random.sample(neg_replays, neg_N) + random.sample(pos_replays, pos_N)
+        x_batch = [x[0] for x in batch_samples]
+        y_batch = [x[1] for x in batch_samples]
+        x_batch = np.concatenate(x_batch)
+        y_batch = np.concatenate(y_batch)
+        yield x_batch, y_batch
+
+
+
+if __name__ == '__main__':
+    from models import ConvNet
+    game_index_now = 10
+    replays_paths = ''
+    batch_size = 32
+    step_size = 20
+    epoch = 100
+    cnn = ConvNet()
+    cnn_data_loader = data_loader(game_index_now,
+                                  replays_paths,
+                                  batch_size,
+                                  neg_sample_rate=0.5,
+                                  index_range=float('inf'))
+    cnn.train_model(cnn_data_loader, epoch, step_size)

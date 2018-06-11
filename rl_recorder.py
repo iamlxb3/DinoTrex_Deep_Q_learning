@@ -5,11 +5,17 @@ from utils import score_capture
 from PIL import Image
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import pickle
 
 class RlRecorder:
     def __init__(self):
         self.replays = []
         self.reset()
+
+    def save_replays(self):
+        path = 'replays'
+        pickle.dump(self.replays, open('replays', 'wb'))
+        print("Save replays to {}".format(path))
 
     def reset(self):
         self.step = 0
@@ -18,6 +24,7 @@ class RlRecorder:
         self.actions = []
         self.times = []
         self.rewards = []
+        self.cnn_outputs = []
 
     def replays_read(self):
         """
@@ -59,7 +66,8 @@ class RlRecorder:
     def replays_update(self, game_index, is_save=False):
         game_indexes = [int(game_index) for _ in self.cnn_inputs]
         steps = [step for step in range(len(self.cnn_inputs))]
-        self.replays.extend(list(zip(self.cnn_inputs, self.rewards, self.actions, game_indexes, steps)))
+        self.replays.extend(list(zip(self.cnn_inputs, self.rewards, self.cnn_outputs,
+                                     self.actions, game_indexes, steps)))
 
     def replay_check(self):
         dir1 = 'input_check'

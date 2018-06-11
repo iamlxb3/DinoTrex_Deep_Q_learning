@@ -62,6 +62,9 @@ def play_1_game(game_index, game_controller, game_cfg, player_controller, space_
     # update replays
     rl_recorder.replays_update(game_index)
 
+    # save replays
+    rl_recorder.save_replays()
+
 
     #rl_recorder.replay_check()
     return score
@@ -107,4 +110,4 @@ if __name__ == "__main__":
         performances['score'].append(score)
         performances_save("performances.csv", performances)
 
-        # (5.) load samples from exprience pool & train CNN
+        # (5.) load samples from experience pool & train CNN

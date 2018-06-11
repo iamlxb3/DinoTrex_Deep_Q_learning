@@ -1,86 +1,118 @@
 import torch
+import numpy as np
 import torch.nn as nn
-from torch.autograd import Variable
-import torch.utils.data as Data
+import torchvision
+import ipdb
+import torchvision.transforms as transforms
 
-
-class CNN(nn.Module):
-    def __init__(self, EPOCH, BATCH_SIZE, LR, fig_wid, fig_len, verbose = False):
-        super(CNN, self).__init__()
-        self.conv1 = nn.Sequential(     # convolution layer (m*n*p)
-            nn.Conv2d(              # (1, 28, 28)
-                in_channels=1,      # input number of filters
-                out_channels=16,    # output number of filters
-                kernel_size=5,      # size of filters
-                stride=1,           # gap size
-                padding=2           # if strid = 1, padding = (kernel_size-1)/2
-            ),  # -> (16, 28, 28)
+class ConvNet(nn.Module):
+    def __init__(self, num_classes=10):
+        super(ConvNet, self).__init__()
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=5, stride=1, padding=2),
+            nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),    # -> (16, 14, 14)
-        )
-        self.conv2 = nn.Sequential( # (16, 14, 14)
-            nn.Conv2d(16, 32, 5, 1, 2), # -> (32, 14, 14)
-            nn.ReLU(),                  # -> (32, 14, 14)
-            nn.MaxPool2d(2)             # -> (32, 7, 7)
-        )
-        self.out = nn.Linear(32 * int(fig_wid/4) * int(fig_len/4), 1)
-        self.fig_wid = fig_wid
-        self.fig_len = fig_len
-        self.EPOCH = EPOCH
-        self.BATCH_SIZE = BATCH_SIZE
-        self.LR = LR
-        self.is_verbose = verbose
-
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(16, 32, kernel_size=5, stride=1, padding=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.fc = nn.Linear(7 * 7 * 32, num_classes)
+        self.criterion = nn.CrossEntropyLoss()
+        self.loss_func = nn.MSELoss()
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)           # (batch, 32, 7, 7)
-        x = x.view(x.size(0), -1)   # (batch, 32 * 7 * 7)
-        output = self.out(x)
-        return output
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = x.view(x.size(0), -1)
+        out = self.fc(x)
+        return out
 
-    def data_process(self, train_dataset):
-        train_loader = Data.DataLoader(
-            dataset=train_dataset,
-            batch_size=self.BATCH_SIZE,
-            shuffle=True,
-            num_workers=2
-        )
-        return train_loader
+    def train_model(self, data_loader, epoch, step_size, save_chkpnt=True):
+        lowest_epoch_loss = float('inf')
+        for n in range(epoch):
+            losses = 0
+            for i in range(step_size):
+                x_batch, y_batch = next(data_loader)
+                x_batch = torch.autograd.Variable(x_batch).cuda()
+                y_batch = torch.from_numpy(y_batch).float().cuda()
+                # Forward pass
+                outputs = self.forward(x_batch)
+                loss = self.loss_func(outputs, y_batch)
+                losses += loss
+                # Backward and optimize
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
 
-    def regressor_train(self, train_dataset):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.LR)  # optimize all cnn parameters
-        loss_func = nn.MSELoss()
-        train_loader = self.data_process(train_dataset)
-        print ("CNN start training...")
-        loss_list = []
-        for i, epoch in enumerate(range(self.EPOCH)):
-            for step, (x, y) in enumerate(train_loader):  # gives batch data, normalize x when item
-                b_x = Variable(x).cuda()  # batch x
-                b_y = Variable(y).cuda()  # batch y
-                output = self.forward(b_x)  # cnn output
+                if (i + 1) % 100 == 0:
+                    print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
+                          .format(epoch + 1, num_epochs, i + 1, total_step, loss.data[0]))
+            epoch_loss = losses / n
+            if save_chkpnt:
+                if epoch_loss < lowest_epoch_loss:
+                    lowest_epoch_loss = epoch_loss
+                    torch.save(self, 'cnnchkpnt_loss_{}_epoch_{}'.format(epoch_loss, epoch))
 
-                loss = loss_func(output, torch.unsqueeze(b_y.type(torch.FloatTensor).cuda(), dim=1))  # mean squared error loss
-                optimizer.zero_grad()  # clear gradients for this training step
-                loss.backward()  # backpropagation, compute gradients
-                optimizer.step()
 
-                if self.is_verbose:
-                    if step % 50 == 0:
-                        print('Epoch: ', epoch, '| train loss: %.4f' % loss.data[0])
-            training_loss = loss.data[0]
-            loss_list.append(training_loss)
-            if i >= 3:
-                if loss_list[-1] > loss_list[-2] and loss_list[-1] > loss_list[-3]:
-                    print ("NO improvement within 3 epoches! Break!")
-                    break
-                    s
-        print ("CNN training complete...")
+if __name__ == '__main__':
+    image_size = (100, 1, 28, 28)
+    net = ConvNet(10)
+    print(net)
 
-    def regressor_dev(self, test_data):
-        test_data = Variable(test_data)
-        test_output = self.forward(test_data).cpu().data.numpy()[0][0]
-        return test_output
+    # Hyper parameters
+    num_epochs = 5
+    num_classes = 10
+    batch_size = 100
+    learning_rate = 0.001
 
-    def regressor_train1(self, train_dataset):
-        print ("aaaa")
+    # MNIST dataset
+    train_dataset = torchvision.datasets.MNIST(root='../../data/',
+                                               train=True,
+                                               transform=transforms.ToTensor(),
+                                               download=True)
+
+    # Data loader
+    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+                                               batch_size=batch_size,
+                                               shuffle=True)
+
+
+    model = ConvNet(num_classes)
+
+    if torch.cuda.is_available():
+        model = model.cuda()
+        print("Cuda is available!")
+
+    # Loss and optimizer
+    criterion = nn.CrossEntropyLoss()
+    loss_func = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    # Train the model
+    total_step = len(train_loader)
+    for epoch in range(num_epochs):
+        for i, (images, labels) in enumerate(train_loader):
+            images = torch.autograd.Variable(images).cuda()
+            labels = torch.autograd.Variable(labels).cuda()
+
+            labels = np.ones((100,10))
+            labels = torch.from_numpy(labels).float().cuda() # torch.unsqueeze(b_y.type(torch.FloatTensor).cuda()
+
+
+            # Forward pass
+            outputs = model(images)
+            #loss = criterion(outputs, labels)
+            loss = loss_func(outputs, labels)
+            # Backward and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            if (i + 1) % 100 == 0:
+                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
+                      .format(epoch + 1, num_epochs, i + 1, total_step, loss.data[0]))
+            # import ipdb
+            # ipdb.set_trace()

@@ -17,7 +17,7 @@ general_cfg.app = 'chrome'
 # -------------------------------------------------------------------
 game_cfg = edict()
 game_cfg.mode = 'random'
-game_cfg.iteration =  10
+game_cfg.iteration = 100
 game_cfg.action_gap = 0.15
 game_cfg.img_shape = (385, 85)
 game_cfg.start_pic_path = os.path.join('start_end_shots', 'trex_start.png')
@@ -26,7 +26,7 @@ game_cfg.start_bbox = (570, 200, 1340, 350)  # left, upper, right, and lower
 game_cfg.end_bbox = (800, 200, 1120, 225)
 game_cfg.run_bbox = (570, 200, 1340, 350)
 game_cfg.score_bbox = (1240, 150, 1330, 200)
-game_cfg.start_thres = 1
+game_cfg.start_thres = 3
 game_cfg.end_thres = 1
 game_cfg.space_time_gap = 0.28
 # -------------------------------------------------------------------
