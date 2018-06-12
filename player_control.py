@@ -1,6 +1,8 @@
 import win32com.client as comctl
 import time
 import random
+import torch
+import numpy as np
 
 class PlayerController:
     def __init__(self, app):
@@ -20,19 +22,30 @@ class PlayerController:
             time.sleep(interval_t)
             self.wsh.SendKeys("{ }")
 
-    def action_choose(self, game_cfg, cnn_input=None):
+    def action_choose(self, game_cfg, cnn, cnn_input=None):
         if game_cfg.mode == 'random':
             random_number = random.randint(0, 1)
             if random_number == 0:
                 action = 'space'
             else:
                 action = 'idle'
+        elif game_cfg.mode == 'cnn':
+            cnn_input = torch.from_numpy(cnn_input).float().cuda()
+            predictions = cnn.forward(cnn_input).cpu().detach().numpy()
+            max_index = int(np.argmax(predictions, axis=1))
+            if max_index == 0:
+                action = 'idle'
+            elif max_index == 1:
+                action = 'space'
+            else:
+                raise Exception("Invalid max index for CNN output")
         else:
             raise Exception("Invalid game mode: ", game_cfg.mode)
         return action
 
-    def action_take(self, action, space_timer):
-        print("Action: ", action)
+    def action_take(self, action, space_timer, verbose=False):
+        if verbose:
+            print("Action: ", action)
         if action == 'space':
             is_space_cooling_down = space_timer.is_space_cooling_down(time.time())
             if is_space_cooling_down:
