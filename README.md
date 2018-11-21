@@ -1,6 +1,8 @@
 A project aiming to play chrome dino with Deep Q-learning.
 Online game website: (https://chromedino.com)
 
+![chrome dino](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ_P1x175m4cGhhc_wVWJ9qAiclmEjO9R_cQvDo4dApWwjH8xXgQw)
+
 # MDP 
 A Markov decision process is a discrete time stochastic control process. At each time step, the process is in some state s, and the
 decision maker may choose any action a that is available in state s. The process responds at the next time step by moving into 
