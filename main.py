@@ -1,242 +1,139 @@
-from flappy_bird_controller import FlappyBirdController
-from screen_capturer import GameFb
+"""
+Playing T-rex by Deep Q-learning
+Author: Xiaoxuan Wang & PJS
+
+T-rex url: chrome://dino/
+Press F12 in chrome, switch to console and type "Runner.instance_.setSpeed(100)" to control speed
+
+# temp
+torch.cuda.is_available()
+"""
+
+from player_control import PlayerController
+from game_control import GameController
+from rl_recorder import RlRecorder
 import time
-import random
-import sys
-from fb_rl import FB_RL
-from space_timer import SpaceTimer
+import os
+import torch
+import pandas as pd
+from timer import Timer
+from models import ConvNet
+from config import game_cfg, general_cfg, cnn_cfg, rl_cfg
+from utils import load_replays, data_loader
+
+
+def play_1_game(game_index, game_controller, game_cfg, player_controller, space_timer, rl_recorder, cnn):
+    print("Game running...")
+    rl_recorder.reset()
+
+    is_game_end = False  # game_controller.game_state_check(game_cfg.end_pic_path, game_cfg.end_bbox, game_cfg.end_thres)
+    while not is_game_end:
+        time1 = time.time()
+
+        # (1.) record envs
+        cnn_input = rl_recorder.envs_record(game_cfg, cnn_cfg)
+
+        # (2.) choose an action
+        action = player_controller.action_choose(game_cfg, cnn, cnn_input=cnn_input)
+
+        # (3.) take the action
+        action = player_controller.action_take(action, space_timer)  # action taken
+        rl_recorder.actions.append(action)  # record actions
+
+        # (4.) check game end
+        time.sleep(rl_cfg.action_gap)
+        is_game_end = game_controller.game_state_check(game_cfg.end_pic_path,
+                                                       game_cfg.end_bbox,
+                                                       game_cfg.end_thres,
+                                                       is_save=False, verbose=False)
+
+        # (5.) update step & save time
+        time2 = time.time()
+        rl_recorder.step += 1
+        rl_recorder.times.append(time2 - time1)
+
+    # get score
+    score = rl_recorder.score_record(game_cfg)
+
+    assert len(rl_recorder.envs) == len(rl_recorder.actions) \
+           == len(rl_recorder.cnn_inputs), "Length of env, action not equal!"
+
+    # compute reward
+    rl_recorder.rewards_compute(rl_cfg, cnn, cnn_cfg)
+
+    # update replays
+    rl_recorder.replays_update(game_index)
+
+    # save replays
+    rl_recorder.save_replays(rl_cfg)
+
+    # rl_recorder.replay_check()
+    return score
+
+
+def train_cnn(cnn, cnn_cfg, rl_cfg, game_index_now):
+    replays_paths = rl_cfg.replay_path
+    batch_size = cnn_cfg.batch_size
+    epoch = cnn_cfg.epoch
+    random_samples, step_size = load_replays(replays_paths,
+                                             batch_size,
+                                             game_index_now,
+                                             pos_sample_factor=cnn_cfg.pos_sample_factor,
+                                             max_N=cnn_cfg.max_N,
+                                             valid_game_index_range=cnn_cfg.valid_game_index_range)
+    cnn_data_loader = data_loader(batch_size, random_samples, step_size)
+    cnn.train_model(cnn_data_loader, epoch, step_size, save_chkpnt=True)
+    print("Train CNN done!")
+
+
+def initialise():
+    game_controller = GameController(game_cfg.start_bbox, game_cfg.end_bbox, game_cfg.start_thres)
+    player_controller = PlayerController(general_cfg.app)
+    rl_recorder = RlRecorder()
+    # TODO, read replay from disk
+    player_controller.activate_chrome()  # switch to chrome
+    timer = Timer(game_cfg.space_time_gap)
+    performances = {'iter': [], 'score': []}
+    if cnn_cfg.load_model and os.path.isfile(cnn_cfg.chkpnt_path):
+        cnn = torch.load(cnn_cfg.chkpnt_path)
+        cnn.cnn_cfg = cnn_cfg
+        print("Load cnn model from ", cnn_cfg.chkpnt_path)
+    else:
+        cnn = ConvNet(cnn_cfg, num_classes=cnn_cfg.num_classes, lr=cnn_cfg.lr)
+        print("Create new CNN done!")
+    if torch.cuda.is_available():
+        cnn = cnn.cuda()
+        print("Cuda is available!")
+    return game_controller, player_controller, rl_recorder, timer, performances, cnn
+
+
+def performances_save(save_path, performances):
+    performances_df = pd.DataFrame(performances)
+    performances_df.to_csv(save_path, index=False)
+    print("save result df to {}".format(save_path))
+
 
 if __name__ == "__main__":
 
-    # [flappybird] http://flappybird.io/
-    # [google dinosaur] http://apps.thecodepost.org/trex/trex.html
+    # (0.) initialise
+    game_controller, player_controller, rl_recorder, timer, performances, cnn = initialise()
 
+    for N in range(game_cfg.iteration):
+        print("Start New Game, iteration: {}".format(N))
 
+        # (1.) remove all screen shots of last game
+        game_controller.remove_screen_shots()
 
-    is_CNN = True
-    is_ANNs_ready = True
-    GAME = 'trex' # trex, fb
+        # (2.) make sure game is ready to go
+        game_controller.check_game_start(game_cfg, player_controller)
 
-    if GAME == 'fb':
-        # -------------------------------------------------------------------
-        # FLAPPY BIRD CONFIG
-        # -------------------------------------------------------------------
-        is_CUDA = True
-        fig_wid, fig_len = 196, 265
-        ACTION_GAP_TIME = 0.15
-        start_img = 'fb_start.png'
-        end_img = 'fb_end.png'
-        run_bbox = (748, 175, 1140, 705) #
-        end_bbox = (830, 525, 1065, 560)
-        GAME_START_THRESHOLD = 6.0
-        file1_name = 'fb_Q_learning_space_data.csv'
-        file2_name = 'fb_Q_learning_idle_data.csv'
-        random_prob = 0.4
-        # -------------------------------------------------------------------
-    elif GAME == 'trex':
-        # -------------------------------------------------------------------
-        # T-rex CONFIG
-        # -------------------------------------------------------------------
-        is_CUDA = True
-        ACTION_GAP_TIME = 0.15
-        fig_wid, fig_len = 385, 85
-        start_img = 'trex_start.png'
-        end_img = 'trex_end.png'
-        run_bbox = (570, 380, 1340, 550) #left, upper, right, and lower
-        end_bbox = (810, 390, 1100, 460)
-        GAME_START_THRESHOLD = 6.0
-        file1_name = 'trex_Q_learning_space_data.csv'
-        file2_name = 'trex_Q_learning_idle_data.csv'
-        random_prob = -1
-        space_time_gap = 0.28
-        space_timer = SpaceTimer(space_time_gap)
-        # -------------------------------------------------------------------
-    else:
-        sys.exit()
+        # (3.) play game once
+        score = play_1_game(N, game_controller, game_cfg, player_controller, timer, rl_recorder, cnn)
 
+        # (4.) record & save results
+        performances['iter'].append(N)
+        performances['score'].append(score)
+        performances_save("performances.csv", performances)
 
-    # --------------------------------------
-    # (1.) RL config
-    # --------------------------------------
-    img_compress_ratio = 0.5
-    iteration = 1000
-    THIN_FACTOR = 1
-    alpha = 0.5
-    SPACE_KEPT_NUMBER = 400
-    IDLE_KEPT_NUMBER = 400
-    random_prob_decrease_value = (1-random_prob) / ((3/4)*iteration)
-    # --------------------------------------
-
-    # --------------------------------------
-    # (2.) ANN config
-    # --------------------------------------
-    nn_config_dict = {}
-    nn_config_dict['learning_rate_init'] = 0.0001
-    nn_config_dict['max_iter'] = 3000
-    nn_config_dict['tol'] = 1e-6
-    nn_config_dict['hidden_layer_sizes'] = (50,1)
-    nn_config_dict['is_verbose'] = True
-
-    nn_config_dict['fig_wid'] = fig_wid
-    nn_config_dict['fig_len'] = fig_len
-    if is_CNN:
-        nn_config_dict['EPOCH'] = 10
-        nn_config_dict['BATCH_SIZE'] = 50
-    # --------------------------------------
-
-    # --------------------------------------
-    # INITIALISATION
-    # --------------------------------------
-    app = 'chrome'
-    game_fb = GameFb(run_bbox, end_bbox, GAME_START_THRESHOLD)
-    bird_c = FlappyBirdController(app)
-    rl_controller = FB_RL(nn_config_dict,alpha,is_CNN = is_CNN, is_CUDA = is_CUDA)
-    # --------------------------------------
-    img_shape = (fig_wid, fig_len)
-    # pre train CNN before playing CNN
-
-    if is_ANNs_ready:
-        print ("pre-training CNN...")
-        rl_controller.train_rl(img_shape, file1_name, file2_name, is_CNN=is_CNN)
-        print ("pre-training CNN complete...")
-
-    # ======================================================================================================================
-    # MAIN
-    # ======================================================================================================================
-    for iteration_i in range(iteration):
-
-
-        print ("Start New Game, iteration: {}".format(iteration_i))
-        game_fb.clear_screen_shots()
-        rl_controller.step = 0
-
-
-        is_game_start = game_fb.is_game_start(start_img)
-        while not is_game_start:
-            bird_c.press_key_space_n_times(1)
-            print ("Wating for game to start...")
-            time.sleep(0.2)
-            is_game_start = game_fb.is_game_start(start_img)
-
-        is_game_end = game_fb.is_game_end(end_img)
-
-        print("Game running...")
-        while not is_game_end:
-            is_space_cooling_down = True
-
-            sleep_time = ACTION_GAP_TIME
-            time.sleep(sleep_time)
-
-
-
-            # (0.) get evn
-            evn_feature_list, img_shape = game_fb.get_img_feature(thin_factor=THIN_FACTOR,
-                                                                  img_compress_ratio = img_compress_ratio)
-            #sys.exit()
-            img_shape = (img_shape[1], img_shape[0])
-            #print ("img_shape: ", img_shape)
-
-
-            # +++++++++++++++++++++++++++++++++++++++++++++++++
-            # (1.) get action
-            # +++++++++++++++++++++++++++++++++++++++++++++++++
-            # -------------------------------------------------
-            # use random action for the 1st iteration
-            # -------------------------------------------------
-            if not is_ANNs_ready:
-                random_number = random.randint(0,1)
-                if random_number == 0:
-                    action = 'space'
-                else:
-                    action = 'idle'
-            # -------------------------------------------------
-
-            # -------------------------------------------------
-            # use ANNs as the funtion approximator
-            # -------------------------------------------------
-            else:
-                if rl_controller.step == 0:
-                    action = 'space'
-                else:
-                    #action = 'idle'
-
-                    # -----------------------------------------
-                    # gradually decrease the random prob
-                    # -----------------------------------------
-                    if random_prob <= 0:
-                        random_prob = 0.0
-                    else:
-                        random_prob -= random_prob_decrease_value
-                    # -----------------------------------------
-                    action = rl_controller.get_action(evn_feature_list, img_shape, is_CNN = is_CNN,
-                                                      random_prob = random_prob, game = GAME)
-            # -------------------------------------------------
-
-            # +++++++++++++++++++++++++++++++++++++++++++++++++
-
-            #print ("[action]: {}".format(action))
-            # (2.) take action
-            if action == 'space':
-                if GAME == 'trex':
-                    is_space_cooling_down = space_timer.is_cooling_down(time.time())
-                bird_c._press_key_space()
-                if GAME == 'trex':
-                    space_timer.start(time.time())
-            else:
-                pass
-
-
-            # (.) print
-            print ("[step {}], [action]-{}".format(rl_controller.step, action))
-            #
-
-            # (.) update rl dicts
-            if GAME == 'trex' and not is_space_cooling_down and action == 'space':
-                is_game_end = game_fb.is_game_end(end_img)
-            else:
-                rl_controller.action_dict[rl_controller.step] = action
-
-                if action == 'space':
-                    reward = 0.9
-                elif action == 'idle':
-                    reward = 1
-
-                rl_controller.reward_dict[rl_controller.step] = reward
-                rl_controller.env_dict[rl_controller.step] = evn_feature_list
-                rl_controller.step += 1
-                is_game_end = game_fb.is_game_end(end_img)
-
-        reward = -1
-
-        # update RL
-        rl_controller.reward_dict[rl_controller.step] = reward
-        rl_controller.compute_reward()
-        rl_controller.save_Q_learning_data(file1_name, file2_name,
-                                           space_kept_number = SPACE_KEPT_NUMBER, idle_kept_number = IDLE_KEPT_NUMBER)
-        print ("Training start... ")
-
-        #print ("img_shape: ", img_shape)
-        rl_controller.train_rl(img_shape, file1_name, file2_name, is_CNN = is_CNN)
-
-        #
-        print ("============================================")
-        time.sleep(0.5)
-
-    # ======================================================================================================================
-
-
-
-
-        # # detect whether game is still running
-    # while True:
-    #     # (1.) refresh the environment, set the refresh rate, update_env-dict
-    #     # (2.) choose the best action from RL
-    #     to_press_key = True
-    #     # (3.) do the action
-    #     if to_press_key:
-    #         bird_c.press_key_space()
-    #     # (4.) update action-dict, late-reward-dict
-    #
-    #
-    #
-    # # update Q learning
+        # (5.) load samples from experience pool & train CNN
+        train_cnn(cnn, cnn_cfg, rl_cfg, N)

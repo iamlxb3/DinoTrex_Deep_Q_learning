@@ -13,7 +13,7 @@ class CNN(nn.Module):
                 out_channels=16,    # output number of filters
                 kernel_size=5,      # size of filters
                 stride=1,           # gap size
-                padding=2           # if strid = 1, padding = (kernel_size-1)/2
+                padding=2           # if stride = 1, padding = (kernel_size-1)/2
             ),  # -> (16, 28, 28)
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),    # -> (16, 14, 14)
@@ -75,12 +75,6 @@ class CNN(nn.Module):
                     print ("NO improvement within 3 epoches! Break!")
                     break
 
-                #     pre_output = self.predict(test_x)
-                #     print(pre_output)
-                #     # pred_y = torch.max(test_output, 1)[1].data.squeeze()
-                #     # diff_tensor = torch.unsqueeze(pred_y-test_y, dim=1)
-                #     # test_loss = torch.sum(torch.squeeze(torch.mm(diff_tensor, torch.t(diff_tensor)))) / test_y.size(0)
-                #     # test_loss = loss_func(pre_output, torch.unsqueeze(Variable(test_y).type(torch.FloatTensor), dim=1))
         print ("CNN training complete...")
 
     def regressor_dev(self, test_data):

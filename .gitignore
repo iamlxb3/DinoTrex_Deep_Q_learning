@@ -1,7 +1,5 @@
 screen_shots/*
+input_check/*
 running_screen_shots/*
-PCA_data/*
 *.txt
 *.csv
-*.jpg
-*.png
