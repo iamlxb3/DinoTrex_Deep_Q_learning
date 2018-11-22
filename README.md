@@ -31,6 +31,7 @@ The highest score is around 1000.
 # Reproduce
 It maybe a bit hard to reproduce my results because I am iteracting with the game by purely looking at the screenshots, so you may need to 
 adjust the bounding bboxes for detecting start, end of the game.
+The entrance is main.py
 
 # Video
 For demo, please go to https://www.youtube.com/watch?v=nC1GX7X_aHA&feature=youtu.be
